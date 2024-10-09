@@ -7,9 +7,7 @@ import Image from "next/image";
 import SidebarItem from "@/components/Sidebar/SidebarItem";
 import ClickOutside from "@/components/ClickOutside";
 import useLocalStorage from "@/hooks/useLocalStorage";
-
-// Import icons from react-icons
-import { FaUsers, FaDoorOpen, FaBookOpen, FaConciergeBell, FaChartBar } from 'react-icons/fa';
+import { FaUsers, FaDoorOpen, FaBookOpen, FaConciergeBell } from 'react-icons/fa';
 
 interface SidebarProps {
   sidebarOpen: boolean;
@@ -54,21 +52,11 @@ const menuGroups = [
       },
       {
         icon: <FaConciergeBell />,
-        label: "Services",
+        label: "Service Requests",
         route: "#",
         children: [
-          { label: "List Services", route: "/services" },
-          { label: "Add Service", route: "/services/add" },
-        ],
-      },
-      {
-        icon: <FaChartBar />,
-        label: "Reports",
-        route: "#",
-        children: [
-          { label: "Booking Reports", route: "/reports/bookings" },
-          { label: "Revenue Reports", route: "/reports/revenue" },
-          { label: "Service Reports", route: "/reports/services" },
+          { label: "List Service Requests", route: "/services" },
+          { label: "Add Service Request", route: "/services/add" },
         ],
       },
     ],
@@ -86,7 +74,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* <!-- SIDEBAR HEADER --> */}
         <div className="flex items-center justify-between gap-2 px-6 py-5.5 lg:py-6.5">
           <Link href="/">
             <Image
@@ -106,10 +93,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             <FaUsers />
           </button>
         </div>
-        {/* <!-- SIDEBAR HEADER --> */}
 
         <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
-          {/* <!-- Sidebar Menu --> */}
           <nav className="mt-5 px-4 py-4 lg:mt-9 lg:px-6">
             {menuGroups.map((group, groupIndex) => (
               <div key={groupIndex}>
@@ -130,7 +115,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               </div>
             ))}
           </nav>
-          {/* <!-- Sidebar Menu --> */}
         </div>
       </aside>
     </ClickOutside>
