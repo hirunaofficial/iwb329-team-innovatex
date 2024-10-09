@@ -38,8 +38,9 @@ const initialRoomData: Room[] = [
 
 const ListRooms = () => {
   const [rooms, setRooms] = useState<Room[]>(initialRoomData);
-  const [editRoomIndex, setEditRoomIndex] = useState<number | null>(null); // Track which room is being edited
-  const [editFormData, setEditFormData] = useState<Partial<Room>>({}); // Store the edited form data
+  const [searchTerm, setSearchTerm] = useState("");
+  const [editRoomIndex, setEditRoomIndex] = useState<number | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<Room>>({});
 
   // Handle form input changes for editing
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -70,11 +71,29 @@ const ListRooms = () => {
     setRooms((prevRooms) => prevRooms.filter((_, i) => i !== index));
   };
 
+  // Function to filter rooms based on the search term
+  const filteredRooms = rooms.filter((room) =>
+    room.room_number.includes(searchTerm) ||
+    room.room_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    room.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    room.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Rooms" />
 
       <div className="flex flex-col gap-10">
+        <div className="flex justify-between items-center mb-4">
+          <input
+            type="text"
+            placeholder="Search rooms..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border rounded-lg p-2 w-full"
+          />
+        </div>
+
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
             <table className="w-full table-auto">
@@ -101,7 +120,7 @@ const ListRooms = () => {
                 </tr>
               </thead>
               <tbody>
-                {rooms.map((room, index) => (
+                {filteredRooms.map((room, index) => (
                   <tr key={index}>
                     {/* Editable Row */}
                     {editRoomIndex === index ? (
