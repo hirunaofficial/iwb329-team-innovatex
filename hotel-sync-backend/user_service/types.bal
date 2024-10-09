@@ -8,10 +8,5 @@ type User record {|
     string role;
     string address?;
     string status;
-    string created_at?;
-|};
-
-type Login record {|
-    string email;
-    string password;
+    string created_at;
 |};
