@@ -9,12 +9,17 @@ const AddUserForm = () => {
     nic: "",
     name: "",
     email: "",
-    phoneNumber: "",
+    phone_number: "",
     password: "",
     retypePassword: "",
-    role: "User", // Default role
+    role: "User",
     address: "",
+    status: "active",
   });
+  
+  const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -25,10 +30,18 @@ const AddUserForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Password validation
     if (formData.password !== formData.retypePassword) {
-      alert("Passwords do not match!");
+      setPasswordError("Passwords do not match!");
       return;
+    } else {
+      setPasswordError(""); // Clear password error if they match
     }
+
+    // Reset any previous messages
+    setFormError(null);
+    setFormSuccess(null);
 
     // Send the data to the backend API
     try {
@@ -42,12 +55,24 @@ const AddUserForm = () => {
 
       const result = await response.json();
       if (response.ok) {
-        alert("User created successfully!");
+        setFormSuccess("User created successfully!");
+        // Clear form after success
+        setFormData({
+          nic: "",
+          name: "",
+          email: "",
+          phone_number: "",
+          password: "",
+          retypePassword: "",
+          role: "User",
+          address: "",
+          status: "active",
+        });
       } else {
-        alert(result.message || "Failed to create user.");
+        setFormError(result.message || "Failed to create user.");
       }
     } catch (error) {
-      alert("An error occurred. Please try again.");
+      setFormError("An error occurred. Please try again.");
     }
   };
 
@@ -57,7 +82,6 @@ const AddUserForm = () => {
 
       <div className="flex justify-center">
         <div className="w-full">
-          {/* Add User Form */}
           <div className="rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
             <div className="border-b border-stroke px-6.5 py-4 dark:border-strokedark">
               <h3 className="font-medium text-black dark:text-white">Add User</h3>
@@ -65,7 +89,6 @@ const AddUserForm = () => {
 
             <form onSubmit={handleSubmit}>
               <div className="p-6.5">
-                {/* NIC Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     NIC
@@ -76,11 +99,11 @@ const AddUserForm = () => {
                     placeholder="Enter NIC"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.nic}
                     required
                   />
                 </div>
 
-                {/* Name Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Name
@@ -91,11 +114,11 @@ const AddUserForm = () => {
                     placeholder="Enter your full name"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.name}
                     required
                   />
                 </div>
 
-                {/* Email Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Email
@@ -106,6 +129,7 @@ const AddUserForm = () => {
                     placeholder="Enter your email address"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.email}
                     required
                   />
                 </div>
@@ -116,16 +140,17 @@ const AddUserForm = () => {
                     Phone Number
                   </label>
                   <input
-                    type="text"
-                    name="phoneNumber"
+                    type="tel"
+                    name="phone_number"
                     placeholder="Enter your phone number"
+                    pattern="[0-9]{10}"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.phone_number}
                     required
                   />
                 </div>
 
-                {/* Password Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Password
@@ -136,11 +161,11 @@ const AddUserForm = () => {
                     placeholder="Enter password"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.password}
                     required
                   />
                 </div>
 
-                {/* Re-type Password Field */}
                 <div className="mb-5.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Re-type Password
@@ -151,11 +176,12 @@ const AddUserForm = () => {
                     placeholder="Re-enter password"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.retypePassword}
                     required
                   />
+                  {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
                 </div>
 
-                {/* Role Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Role
@@ -164,6 +190,7 @@ const AddUserForm = () => {
                     name="role"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.role}
                   >
                     <option value="User">User</option>
                     <option value="Admin">Admin</option>
@@ -171,7 +198,6 @@ const AddUserForm = () => {
                   </select>
                 </div>
 
-                {/* Address Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Address
@@ -182,11 +208,14 @@ const AddUserForm = () => {
                     placeholder="Enter your address"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
+                    value={formData.address}
                   />
                 </div>
 
-                {/* Submit Button */}
-                <button className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray hover:bg-opacity-90">
+                {formError && <p className="text-red-500 text-sm mb-4.5">{formError}</p>}
+                {formSuccess && <p className="text-green-500 text-sm mb-4.5">{formSuccess}</p>}
+
+                <button className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:bg-opacity-90">
                   Add User
                 </button>
               </div>
