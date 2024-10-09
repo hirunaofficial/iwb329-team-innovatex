@@ -43,6 +43,7 @@ const initialServiceRequests: ServiceRequest[] = [
 
 const ListServiceRequests = () => {
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>(initialServiceRequests);
+  const [searchTerm, setSearchTerm] = useState("");
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<ServiceRequest>>({});
 
@@ -76,11 +77,29 @@ const ListServiceRequests = () => {
     setServiceRequests((prevRequests) => prevRequests.filter((_, i) => i !== index));
   };
 
+  // Function to filter service requests based on the search term
+  const filteredRequests = serviceRequests.filter((request) =>
+    request.request_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    request.user_id.toString().includes(searchTerm) ||
+    request.assigned_to.toString().includes(searchTerm) ||
+    request.status.includes(searchTerm.toLowerCase())
+  );
+
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Service Requests" />
 
       <div className="flex flex-col gap-10">
+        <div className="flex justify-between items-center mb-4">
+          <input
+            type="text"
+            placeholder="Search service requests..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="border rounded-lg p-2 w-full"
+          />
+        </div>
+        
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
             <table className="w-full table-auto">
@@ -110,7 +129,7 @@ const ListServiceRequests = () => {
                 </tr>
               </thead>
               <tbody>
-                {serviceRequests.map((request, index) => (
+                {filteredRequests.map((request, index) => (
                   <tr key={index}>
                     {editIndex === index ? (
                       <>
@@ -186,7 +205,7 @@ const ListServiceRequests = () => {
                               request.status === "pending"
                                 ? "bg-warning text-warning"
                                 : request.status === "in_progress"
-                                ? "bg-info text-info"
+                                ? "bg-danger text-danger"
                                 : "bg-success text-success"
                             }`}
                           >
