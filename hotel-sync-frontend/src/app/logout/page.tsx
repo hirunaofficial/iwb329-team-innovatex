@@ -3,13 +3,16 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { clearToken } from '@/lib/tokenManager';  // Assuming you're using tokenManager to manage tokens
 
 const Logout = () => {
   const router = useRouter();
 
   useEffect(() => {
+    clearToken(); 
+
     const timeout = setTimeout(() => {
-      router.push("/login");
+      router.push("/auth/login");
     }, 2000);
 
     return () => clearTimeout(timeout);
