@@ -20,6 +20,17 @@ function hashPassword(string password) returns string {
     return hashedPassword.toBase16();
 }
 
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: ["http://localhost:3000"],
+        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowHeaders: ["Authorization", "Content-Type"],
+        allowCredentials: false,
+        exposeHeaders: ["X-CUSTOM-HEADER"],
+        maxAge: 3600
+    }
+}
+
 service /auth on new http:Listener(9090) {
     private final mysql:Client db;
 
