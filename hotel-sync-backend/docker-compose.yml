@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:5.7
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: hotelsync@test
+      MYSQL_DATABASE: hotel_sync_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=root
+      - PMA_PASSWORD=hotelsync@test
+
+  auth_service:
+    image: hirunaofficial/auth_service:v0.1.0
+    build:
+      context: ./auth_service/target/docker/auth_service
+    ports:
+      - "9090:9090"
+    volumes:
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/auth_service/Config.toml:/home/ballerina/Config.toml
+
+  user_service:
+    image: hirunaofficial/user_service:v0.1.0
+    build:
+      context: ./user_service/target/docker/user_service
+    ports:
+      - "9091:9091"
+    volumes:
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/user_service/Config.toml:/home/ballerina/Config.toml
+
+volumes:
+  mysql_data:
