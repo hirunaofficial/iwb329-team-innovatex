@@ -4,19 +4,32 @@ import "flatpickr/dist/flatpickr.min.css";
 import "@/css/satoshi.css";
 import "@/css/style.css";
 import React, { useEffect, useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Loader from "@/components/common/Loader";
+import { getToken } from "@/lib/tokenManager";
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    setTimeout(() => setLoading(false), 1000);
-  }, []);
+    const token = getToken();
+
+    if (pathname !== "/login") {
+      if (!token) {
+        router.push("/login");
+      } else {
+        setTimeout(() => setLoading(false), 1000);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, [router, pathname]);
 
   return (
     <html lang="en">
