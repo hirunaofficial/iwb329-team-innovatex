@@ -1,60 +1,62 @@
 'use client';
+import { useEffect, useState } from "react";
 import { FaEdit, FaTrash, FaKey, FaSave } from "react-icons/fa";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import { useState } from "react";
+import { getToken } from '@/lib/tokenManager';
 
+// Define the User type
 type User = {
   nic: string;
   name: string;
   email: string;
   phone_number: string;
   address: string;
-  role: string;
-  status: string;
+  role: 'Admin' | 'Staff' | 'User';
+  status: 'active' | 'inactive';
   password?: string;
 };
 
-const userData: User[] = [
-  {
-    nic: "200317700110",
-    name: "Hiruna Gallage",
-    email: "hello@hiruna.dev",
-    phone_number: "0777123456",
-    address: "123 Beach Road, Colombo",
-    role: "Admin",
-    status: "active",
-    password: "",
-  },
-  {
-    nic: "987654321V",
-    name: "Jane Doe",
-    email: "jane@example.com",
-    phone_number: "0767123456",
-    address: "45 Main Street, Colombo",
-    role: "User",
-    status: "inactive",
-    password: "",
-  },
-  {
-    nic: "951234567V",
-    name: "Tom Smith",
-    email: "tom@example.com",
-    phone_number: "0717123456",
-    address: "78 High Street, Kandy",
-    role: "Staff",
-    status: "active",
-    password: "",
-  },
-];
-
 const UserList = () => {
-  const [users, setUsers] = useState<User[]>(userData);
-  const [searchTerm, setSearchTerm] = useState(""); // New state for search term
+  const [users, setUsers] = useState<User[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [editPasswordId, setEditPasswordId] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
-  const [editUserId, setEditUserId] = useState<string | null>(null); // For editing entire row
+  const [editUserId, setEditUserId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<User>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch users from the API
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const token = getToken();
+      if (!token) {
+        setError("Authorization token not available.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:9091/users/all", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch users");
+        }
+
+        const data = await response.json();
+        setUsers(data);
+      } catch (err) {
+        setError(err.message || "An error occurred while fetching users.");
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handlePasswordEdit = (nic: string) => {
     setEditPasswordId(nic);
@@ -67,13 +69,13 @@ const UserList = () => {
       )
     );
     setEditPasswordId(null);
-    setPasswordInput(""); // Clear input after saving
+    setPasswordInput("");
   };
 
   const handleUserEdit = (nic: string) => {
     setEditUserId(nic);
     const userToEdit = users.find((user) => user.nic === nic);
-    setEditFormData(userToEdit || {}); // Pre-fill the form
+    setEditFormData(userToEdit || {});
   };
 
   const handleSaveUser = (nic: string) => {
@@ -81,7 +83,7 @@ const UserList = () => {
       prevUsers.map((user) => (user.nic === nic ? { ...user, ...editFormData } : user))
     );
     setEditUserId(null);
-    setEditFormData({}); // Clear form data
+    setEditFormData({});
   };
 
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -117,6 +119,8 @@ const UserList = () => {
           />
         </div>
 
+        {error && <p className="text-red-500">{error}</p>}
+
         <div className="rounded-sm border border-stroke bg-white px-5 pb-2.5 pt-6 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
           <div className="max-w-full overflow-x-auto">
             <table className="w-full table-auto">
@@ -148,7 +152,6 @@ const UserList = () => {
               <tbody>
                 {filteredUsers.map((user) => (
                   <tr key={user.nic}>
-                    {/* Editable Row */}
                     {editUserId === user.nic ? (
                       <>
                         <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
@@ -159,7 +162,15 @@ const UserList = () => {
                             onChange={handleEditFormChange}
                             className="w-full border px-2 py-1"
                           />
-                          <p className="text-sm">{user.nic}</p>
+                          <p className="text-sm">
+                            <input
+                              type="text"
+                              name="nic"
+                              value={editFormData.nic || ""}
+                              onChange={handleEditFormChange}
+                              className="w-full border px-2 py-1"
+                            />
+                          </p>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <input
@@ -189,18 +200,21 @@ const UserList = () => {
                           />
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                          <input
-                            type="text"
+                          <select
                             name="role"
-                            value={editFormData.role || ""}
+                            value={editFormData.role || user.role}
                             onChange={handleEditFormChange}
                             className="w-full border px-2 py-1"
-                          />
+                          >
+                            <option value="Admin">Admin</option>
+                            <option value="Staff">Staff</option>
+                            <option value="User">User</option>
+                          </select>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <select
                             name="status"
-                            value={editFormData.status || ""}
+                            value={editFormData.status || user.status}
                             onChange={handleEditFormChange}
                             className="w-full border px-2 py-1"
                           >
@@ -258,7 +272,6 @@ const UserList = () => {
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <div className="flex items-center space-x-3.5">
-                            {/* Change Password Icon */}
                             {editPasswordId === user.nic ? (
                               <>
                                 <input
