@@ -19,7 +19,7 @@ function hashPassword(string password) returns string {
     return hashedPassword.toBase16();
 }
 
-service /users on new http:Listener(8081) {
+service /users on new http:Listener(9091) {
     private final mysql:Client db;
 
     function init() returns error? {
