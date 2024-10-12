@@ -1,71 +1,118 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import SidebarItem from "@/components/Sidebar/SidebarItem";
 import ClickOutside from "@/components/ClickOutside";
-import useLocalStorage from "@/hooks/useLocalStorage";
 import { FaUsers, FaDoorOpen, FaBookOpen, FaConciergeBell } from 'react-icons/fa';
+import { getPayload } from "@/lib/tokenManager";
 
 interface SidebarProps {
   sidebarOpen: boolean;
   setSidebarOpen: (arg: boolean) => void;
 }
 
-const menuGroups = [
-  {
-    name: "MENU",
-    menuItems: [
-      {
-        icon: <FaUsers />,
-        label: "Dashboard",
-        route: "/",
-      },
-      {
-        icon: <FaUsers />,
-        label: "Users",
-        route: "#",
-        children: [
-          { label: "List Users", route: "/users" },
-          { label: "Add User", route: "/users/add" },
-        ],
-      },
-      {
-        icon: <FaDoorOpen />,
-        label: "Rooms",
-        route: "#",
-        children: [
-          { label: "List Rooms", route: "/rooms" },
-          { label: "Add Room", route: "/rooms/add" },
-        ],
-      },
-      {
-        icon: <FaBookOpen />,
-        label: "Bookings",
-        route: "#",
-        children: [
-          { label: "List Bookings", route: "/bookings" },
-          { label: "Add Booking", route: "/bookings/add" },
-        ],
-      },
-      {
-        icon: <FaConciergeBell />,
-        label: "Service Requests",
-        route: "#",
-        children: [
-          { label: "List Service Requests", route: "/services" },
-          { label: "Add Service Request", route: "/services/add" },
-        ],
-      },
-    ],
-  },
-];
-
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const pathname = usePathname();
-  const [pageName, setPageName] = useLocalStorage("selectedMenu", "dashboard");
+  const [pageName, setPageName] = useState("dashboard");
+  const [role, setRole] = useState<string>("");
+
+  useEffect(() => {
+    const payload = getPayload();
+    if (payload && payload.role) {
+      setRole(payload.role);
+    }
+  }, []);
+
+  const adminMenu = [
+    {
+      icon: <FaUsers />,
+      label: "Dashboard",
+      route: "/",
+    },
+    {
+      icon: <FaUsers />,
+      label: "Users",
+      route: "#",
+      children: [
+        { label: "List Users", route: "/users" },
+        { label: "Add User", route: "/users/add" },
+      ],
+    },
+    {
+      icon: <FaDoorOpen />,
+      label: "Rooms",
+      route: "#",
+      children: [
+        { label: "List Rooms", route: "/rooms" },
+        { label: "Add Room", route: "/rooms/add" },
+      ],
+    },
+    {
+      icon: <FaBookOpen />,
+      label: "Bookings",
+      route: "#",
+      children: [
+        { label: "List Bookings", route: "/bookings" },
+        { label: "Add Booking", route: "/bookings/add" },
+      ],
+    },
+    {
+      icon: <FaConciergeBell />,
+      label: "Service Requests",
+      route: "#",
+      children: [
+        { label: "List Service Requests", route: "/services" },
+        { label: "Add Service Request", route: "/services/add" },
+      ],
+    },
+  ];
+
+  const staffMenu = [
+    {
+      icon: <FaBookOpen />,
+      label: "Bookings",
+      route: "#",
+      children: [
+        { label: "List Bookings", route: "/bookings" },
+        { label: "Add Booking", route: "/bookings/add" },
+      ],
+    },
+    {
+      icon: <FaConciergeBell />,
+      label: "Service Requests",
+      route: "#",
+      children: [
+        { label: "List Service Requests", route: "/services" },
+        { label: "Add Service Request", route: "/services/add" },
+      ],
+    },
+  ];
+
+  const userMenu = [
+    {
+      icon: <FaUsers />,
+      label: "Dashboard",
+      route: "/",
+    },
+    {
+      icon: <FaBookOpen />,
+      label: "My Bookings",
+      route: "/my-bookings",
+    },
+  ];
+
+  const getMenuItems = () => {
+    if (role === "Admin") {
+      return adminMenu;
+    } else if (role === "Staff") {
+      return staffMenu;
+    } else {
+      return userMenu;
+    }
+  };
 
   return (
     <ClickOutside onClick={() => setSidebarOpen(false)}>
@@ -96,24 +143,16 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
         <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
           <nav className="mt-5 px-4 py-4 lg:mt-9 lg:px-6">
-            {menuGroups.map((group, groupIndex) => (
-              <div key={groupIndex}>
-                <h3 className="mb-4 ml-4 text-sm font-semibold text-bodydark2">
-                  {group.name}
-                </h3>
-
-                <ul className="mb-6 flex flex-col gap-1.5">
-                  {group.menuItems.map((menuItem, menuIndex) => (
-                    <SidebarItem
-                      key={menuIndex}
-                      item={menuItem}
-                      pageName={pageName}
-                      setPageName={setPageName}
-                    />
-                  ))}
-                </ul>
-              </div>
-            ))}
+            <ul className="mb-6 flex flex-col gap-1.5">
+              {getMenuItems().map((menuItem, index) => (
+                <SidebarItem
+                  key={index}
+                  item={menuItem}
+                  pageName={pageName}
+                  setPageName={setPageName}
+                />
+              ))}
+            </ul>
           </nav>
         </div>
       </aside>
