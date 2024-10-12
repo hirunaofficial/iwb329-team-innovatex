@@ -37,46 +37,33 @@ service /users on new http:Listener(9091) {
         self.db = check new (host, user, password, database, port);
     }
 
-    resource function post add(@http:Payload User user, http:Request req) returns http:Created|http:Unauthorized|error {
+    // Add a new user with password
+    resource function post addUser(@http:Payload UserWithPassword user, http:Request req) returns http:Created|http:Unauthorized|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
-        string hashedPassword = hashPassword(user.password_hash);
+        string hashedPassword = hashPassword(user.password_hash ?: "");
 
         _ = check self.db->execute(`
-            INSERT INTO users (nic, name, email, phone_number, password_hash, role, address, status, created_at)
-            VALUES (${user.nic}, ${user.name}, ${user.email}, ${user.phone_number}, ${hashedPassword}, ${user.role}, ${user.address}, ${user.status}, NOW());
+            INSERT INTO users (nic, name, email, phone_number, password_hash, role, address, created_at)
+            VALUES (${user.nic}, ${user.name}, ${user.email}, ${user.phone_number}, ${hashedPassword}, ${user.role}, ${user.address}, NOW());
         `);
         return http:CREATED;
     }
 
-    resource function get all(http:Request req) returns User[]|http:Unauthorized|error {
+    // Fetch all users without password_hash
+    resource function get getUsers(http:Request req) returns UserWithoutPassword[]|http:Unauthorized|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
-        stream<User, sql:Error?> userStream = self.db->query(`SELECT * FROM users`);
-        return from User user in userStream select user;
+        stream<UserWithoutPassword, sql:Error?> userStream = self.db->query(`SELECT id, nic, name, email, phone_number, role, address, status FROM users`);
+        return from UserWithoutPassword user in userStream select user;
     }
 
-    resource function put update(int id, @http:Payload User updatedUser, http:Request req) returns http:Ok|http:Unauthorized|error {
-        if !self.validateJWT(req) {
-            return http:UNAUTHORIZED;
-        }
-
-        string hashedPassword = hashPassword(updatedUser.password_hash);
-
-        _ = check self.db->execute(`
-            UPDATE users SET nic = ${updatedUser.nic}, name = ${updatedUser.name}, email = ${updatedUser.email}, 
-            phone_number = ${updatedUser.phone_number}, password_hash = ${hashedPassword}, 
-            role = ${updatedUser.role}, address = ${updatedUser.address}, status = ${updatedUser.status}
-            WHERE id = ${id};
-        `);
-        return http:OK;
-    }
-
-    resource function delete remove(int id, http:Request req) returns http:Ok|http:Unauthorized|error {
+    // Delete a user by ID
+    resource function delete deleteUser(int id, http:Request req) returns http:Ok|http:Unauthorized|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
@@ -85,6 +72,45 @@ service /users on new http:Listener(9091) {
         return http:OK;
     }
 
+    // Update user information without password
+    resource function put updateUserInfo(int id, @http:Payload UserWithoutPassword updatedUser, http:Request req) returns http:Ok|http:Unauthorized|error {
+        if !self.validateJWT(req) {
+            return http:UNAUTHORIZED;
+        }
+
+        _ = check self.db->execute(`
+            UPDATE users 
+            SET nic = ${updatedUser.nic ?: ""}, 
+                name = ${updatedUser.name ?: ""}, 
+                email = ${updatedUser.email ?: ""}, 
+                phone_number = ${updatedUser.phone_number ?: ""}, 
+                role = ${updatedUser.role ?: ""}, 
+                address = ${updatedUser.address ?: ""}, 
+                status = ${updatedUser.status ?: ""} 
+            WHERE id = ${id}
+        `);
+
+        return http:OK;
+    }
+
+    // Dedicated method to update only the password
+    resource function put updatePassword(int id, @http:Payload PasswordUpdate passwordUpdate, http:Request req) returns http:Ok|http:Unauthorized|error {
+        if !self.validateJWT(req) {
+            return http:UNAUTHORIZED;
+        }
+
+        string hashedPassword = hashPassword(passwordUpdate.new_password);
+
+        _ = check self.db->execute(`
+            UPDATE users
+            SET password_hash = ${hashedPassword}
+            WHERE id = ${id}
+        `);
+
+        return http:OK;
+    }
+
+    // JWT validation function
     function validateJWT(http:Request req) returns boolean {
         var authHeaderResult = req.getHeader("Authorization");
         
