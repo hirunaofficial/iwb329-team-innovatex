@@ -1,8 +1,8 @@
-"use client";
-
+'use client';
 import { useState } from "react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
+import EmailTemplate from "@/components/EmailTemplate";
 import { FaEye, FaEyeSlash, FaPlus } from "react-icons/fa";
 
 const AddUserForm = () => {
@@ -15,7 +15,7 @@ const AddUserForm = () => {
     password: "",
     role: "User",
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
@@ -33,21 +33,59 @@ const AddUserForm = () => {
     setFormData({ ...formData, password: newPassword });
   };
 
+  // Use the EmailTemplate component with dynamic content
+  const sendEmail = async (user: any) => {
+    const emailBody = EmailTemplate({
+      children: `
+        <p>Dear <strong>${user.name}</strong>,</p>
+        <p>Your account has been successfully created at Hotel Sync. Below are your login details:</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>Password:</strong> ${user.password}</p>
+        <p><strong>NIC:</strong> ${user.nic}</p>
+        <p><strong>Phone Number:</strong> ${user.phone_number}</p>
+        <p><strong>Address:</strong> ${user.address}</p>
+        <p><strong>Role:</strong> ${user.role}</p>
+        <p>Please keep your account details secure.</p>
+      `,
+    });
+
+    const emailData = {
+      to: user.email,
+      subject: "Your New Account Details",
+      body: emailBody,
+    };
+
+    try {
+      const emailResponse = await fetch("http://localhost:9099/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!emailResponse.ok) {
+        console.log("Failed to send email.");
+      } else {
+        console.log("Email sent successfully!");
+      }
+    } catch (error) {
+      console.log("Error sending email:", error);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Reset any previous messages
     setFormError(null);
     setFormSuccess(null);
     setPasswordError("");
 
-    // Basic password validation example
     if (formData.password.length < 6) {
       setPasswordError("Password must be at least 6 characters long.");
       return;
     }
 
-    // Prepare data for API
     const userWithPassword = {
       nic: formData.nic,
       name: formData.name,
@@ -71,6 +109,11 @@ const AddUserForm = () => {
 
       if (response.ok) {
         setFormSuccess("User created successfully!");
+
+        // Send email with user details
+        await sendEmail(formData);
+
+        // Reset form fields after success
         setFormData({
           nic: "",
           name: "",
