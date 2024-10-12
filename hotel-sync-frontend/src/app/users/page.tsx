@@ -5,6 +5,7 @@ import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { getToken } from '@/lib/tokenManager';
 import Alert from "@/components/Alert";
+import EmailTemplate from "@/components/EmailTemplate";
 
 // Record type for full user data (used for adding users with password)
 type Users = {
@@ -66,6 +67,43 @@ const UserList = () => {
     fetchUsers();
   }, []);
 
+  // Function to send email after password update using EmailTemplate
+  const sendEmail = async (user: Users, newPassword: string) => {
+    const emailBody = EmailTemplate({
+      children: `
+        <p>Dear <strong>${user.name}</strong>,</p>
+        <p>Your password has been successfully updated.</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+        <p><strong>New Password:</strong> ${newPassword}</p>
+        <p>Please keep your account details secure.</p>
+      `,
+    });
+
+    const emailData = {
+      to: user.email,
+      subject: "Your Password Has Been Updated",
+      body: emailBody,
+    };
+
+    try {
+      const emailResponse = await fetch("http://localhost:9099/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!emailResponse.ok) {
+        console.log("Failed to send email.");
+      } else {
+        console.log("Email sent successfully!");
+      }
+    } catch (error) {
+      console.log("Error sending email:", error);
+    }
+  };
+
   // Handle password edit
   const handlePasswordEdit = (id: number) => {
     setEditPasswordId(id);
@@ -80,7 +118,7 @@ const UserList = () => {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ new_password: passwordInput }), // Send new password only
+        body: JSON.stringify({ new_password: passwordInput }),
       });
 
       if (!response.ok) throw new Error("Failed to update password");
@@ -90,8 +128,14 @@ const UserList = () => {
 
       // Show success alert
       setAlert({ type: "success", message: "Password updated successfully!" });
+
+      // Find the user and send the email
+      const updatedUser = users.find(user => user.id === id);
+      if (updatedUser) {
+        await sendEmail(updatedUser, passwordInput);
+      }
     } catch (err) {
-      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while updating password." });
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while updating the password." });
     }
   };
 
@@ -124,7 +168,7 @@ const UserList = () => {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(editFormData), // Send updated user data (excluding password)
+        body: JSON.stringify(editFormData),
       });
 
       if (!response.ok) throw new Error("Failed to update user data");
@@ -199,7 +243,6 @@ const UserList = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="border rounded-lg p-2 w-full"
             autoComplete="off"
-            name=""
           />
         </div>
 
@@ -238,7 +281,6 @@ const UserList = () => {
                   <tr key={user.id}>
                     {editUserId === user.id ? (
                       <>
-
                         <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
                           <input
                             type="text"
