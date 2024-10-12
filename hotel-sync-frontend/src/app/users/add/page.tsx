@@ -1,4 +1,4 @@
-"use client"; // Ensure this component is a Client Component
+"use client";
 
 import { useState } from "react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
@@ -10,11 +10,9 @@ const AddUserForm = () => {
     name: "",
     email: "",
     phone_number: "",
-    password: "",
-    retypePassword: "",
-    role: "User",
     address: "",
-    status: "active",
+    password: "",
+    role: "User",
   });
   
   const [passwordError, setPasswordError] = useState("");
@@ -31,29 +29,39 @@ const AddUserForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Password validation
-    if (formData.password !== formData.retypePassword) {
-      setPasswordError("Passwords do not match!");
-      return;
-    } else {
-      setPasswordError(""); // Clear password error if they match
-    }
-
     // Reset any previous messages
     setFormError(null);
     setFormSuccess(null);
+    setPasswordError("");
+
+    // Basic password validation example
+    if (formData.password.length < 6) {
+      setPasswordError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    // Prepare data for API
+    const userWithPassword = {
+      nic: formData.nic,
+      name: formData.name,
+      email: formData.email,
+      phone_number: formData.phone_number,
+      address: formData.address,
+      password_hash: formData.password,
+      role: formData.role,
+    };
 
     // Send the data to the backend API
     try {
-      const response = await fetch("/api/users", {
+      const response = await fetch("http://localhost:9091/users/addUser", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(userWithPassword),
       });
 
-      const result = await response.json();
       if (response.ok) {
         setFormSuccess("User created successfully!");
         // Clear form after success
@@ -62,13 +70,12 @@ const AddUserForm = () => {
           name: "",
           email: "",
           phone_number: "",
-          password: "",
-          retypePassword: "",
-          role: "User",
           address: "",
-          status: "active",
+          password: "",
+          role: "User",
         });
       } else {
+        const result = await response.json();
         setFormError(result.message || "Failed to create user.");
       }
     } catch (error) {
@@ -112,7 +119,7 @@ const AddUserForm = () => {
                     type="text"
                     name="name"
                     placeholder="Enter your full name"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     value={formData.name}
                     required
@@ -127,14 +134,13 @@ const AddUserForm = () => {
                     type="email"
                     name="email"
                     placeholder="Enter your email address"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     value={formData.email}
                     required
                   />
                 </div>
 
-                {/* Phone Number Field */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Phone Number
@@ -144,10 +150,24 @@ const AddUserForm = () => {
                     name="phone_number"
                     placeholder="Enter your phone number"
                     pattern="[0-9]{10}"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     value={formData.phone_number}
                     required
+                  />
+                </div>
+
+                <div className="mb-4.5">
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    name="address"
+                    placeholder="Enter your address"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    onChange={handleChange}
+                    value={formData.address}
                   />
                 </div>
 
@@ -159,24 +179,9 @@ const AddUserForm = () => {
                     type="password"
                     name="password"
                     placeholder="Enter password"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     value={formData.password}
-                    required
-                  />
-                </div>
-
-                <div className="mb-5.5">
-                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                    Re-type Password
-                  </label>
-                  <input
-                    type="password"
-                    name="retypePassword"
-                    placeholder="Re-enter password"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    onChange={handleChange}
-                    value={formData.retypePassword}
                     required
                   />
                   {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
@@ -188,7 +193,7 @@ const AddUserForm = () => {
                   </label>
                   <select
                     name="role"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     value={formData.role}
                   >
@@ -196,20 +201,6 @@ const AddUserForm = () => {
                     <option value="Admin">Admin</option>
                     <option value="Staff">Staff</option>
                   </select>
-                </div>
-
-                <div className="mb-4.5">
-                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    name="address"
-                    placeholder="Enter your address"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    onChange={handleChange}
-                    value={formData.address}
-                  />
                 </div>
 
                 {formError && <p className="text-red-500 text-sm mb-4.5">{formError}</p>}
