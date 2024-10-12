@@ -1,6 +1,7 @@
+import dynamic from "next/dynamic";
 import { ApexOptions } from "apexcharts";
 import React, { useState, useEffect } from "react";
-import ReactApexChart from "react-apexcharts";
+const ReactApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const sampleData = {
   serviceRequests: [
@@ -80,7 +81,6 @@ const ServiceRequestDetails: React.FC = () => {
           <ReactApexChart options={options} series={series} type="donut" />
         </div>
       </div>
-
     </div>
   );
 };
