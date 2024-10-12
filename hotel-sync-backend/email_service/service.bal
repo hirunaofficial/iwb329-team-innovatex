@@ -8,6 +8,17 @@ configurable int smtpPort = ?;
 
 listener http:Listener emailListener = new(9099);
 
+@http:ServiceConfig {
+    cors: {
+        allowOrigins: ["http://localhost:3000"],
+        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowHeaders: ["Authorization", "Content-Type"],
+        allowCredentials: false,
+        exposeHeaders: ["X-CUSTOM-HEADER"],
+        maxAge: 3600
+    }
+}
+
 // HTTP service to handle incoming email requests
 service /email on emailListener {
 
@@ -29,7 +40,7 @@ service /email on emailListener {
         email:Message email = {
             to: [emailRequest.to],
             subject: emailRequest.subject,
-            body: emailRequest.body,
+            htmlBody: emailRequest.body,
             'from: smtpUser,
             sender: smtpUser
         };
