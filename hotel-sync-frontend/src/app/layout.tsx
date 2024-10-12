@@ -6,7 +6,7 @@ import "@/css/style.css";
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Loader from "@/components/common/Loader";
-import { getToken } from "@/lib/tokenManager";
+import { getToken, isTokenExpired, clearToken } from "@/lib/tokenManager";
 
 export default function RootLayout({
   children,
@@ -21,7 +21,8 @@ export default function RootLayout({
     const token = getToken();
 
     if (pathname !== "/login") {
-      if (!token) {
+      if (!token || isTokenExpired()) {
+        clearToken();
         router.push("/login");
       } else {
         setTimeout(() => setLoading(false), 1000);
