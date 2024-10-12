@@ -42,13 +42,13 @@ service /auth on new http:Listener(9090) {
         string email = credentials.email;
         string password = credentials.password;
 
-        User|sql:Error result = self.db->queryRow(`SELECT email, password_hash FROM users WHERE email = ${email}`);
+        User|sql:Error result = self.db->queryRow(`SELECT email, password_hash, role FROM users WHERE email = ${email}`);
 
         if result is User {
             string hashedPassword = hashPassword(password);
 
             if result.password_hash == hashedPassword {
-                string jwtToken = self.generateJWT(email);
+                string jwtToken = self.generateJWT(email, result.role);
 
                 http:Response res = new;
                 res.setPayload({"message": "Login successful", "token": jwtToken});
@@ -61,7 +61,7 @@ service /auth on new http:Listener(9090) {
         }
     }
 
-    function generateJWT(string email) returns string {
+    function generateJWT(string email, string role) returns string {
         string jwtId = uuid:createRandomUuid();
 
         jwt:IssuerConfig issuerConfig = {
@@ -71,7 +71,7 @@ service /auth on new http:Listener(9090) {
             jwtId: jwtId,
             expTime: 3600,
             customClaims: {
-                "role": "user"
+                "role": role
             },
             signatureConfig: {
                 algorithm: jwt:HS256,

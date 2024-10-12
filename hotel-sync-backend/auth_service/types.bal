@@ -6,4 +6,5 @@ type Login record {|
 type User record {| 
     string email;
     string password_hash;
+    string role;
 |};
