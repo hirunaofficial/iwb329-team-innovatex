@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
+import { FaEye, FaEyeSlash, FaPlus } from "react-icons/fa";
 
 const AddUserForm = () => {
   const [formData, setFormData] = useState({
@@ -15,6 +16,7 @@ const AddUserForm = () => {
     role: "User",
   });
   
+  const [showPassword, setShowPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -24,6 +26,11 @@ const AddUserForm = () => {
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const generatePassword = () => {
+    const newPassword = Math.random().toString(36).slice(-8);
+    setFormData({ ...formData, password: newPassword });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -57,14 +64,13 @@ const AddUserForm = () => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${localStorage.getItem("token")}`
+          "Authorization": `Bearer ${localStorage.getItem("token")}`,
         },
         body: JSON.stringify(userWithPassword),
       });
 
       if (response.ok) {
         setFormSuccess("User created successfully!");
-        // Clear form after success
         setFormData({
           nic: "",
           name: "",
@@ -175,15 +181,31 @@ const AddUserForm = () => {
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Password
                   </label>
-                  <input
-                    type="password"
-                    name="password"
-                    placeholder="Enter password"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    onChange={handleChange}
-                    value={formData.password}
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="Enter password"
+                      className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      onChange={handleChange}
+                      value={formData.password}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-4 flex items-center"
+                    >
+                      {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={generatePassword}
+                      className="absolute inset-y-0 right-16 flex items-center"
+                    >
+                      <FaPlus size={20} />
+                    </button>
+                  </div>
                   {passwordError && <p className="text-red-500 text-sm">{passwordError}</p>}
                 </div>
 
