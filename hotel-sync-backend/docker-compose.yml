@@ -38,5 +38,14 @@ services:
     volumes:
       - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/user_service/Config.toml:/home/ballerina/Config.toml
 
+  email_service:
+    image: hirunaofficial/email_service:v0.1.0
+    build:
+      context: ./email_service/target/docker/email_service
+    ports:
+      - "9099:9099"
+    volumes:
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/email_service/Config.toml:/home/ballerina/Config.toml
+
 volumes:
   mysql_data:
