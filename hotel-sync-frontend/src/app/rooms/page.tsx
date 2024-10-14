@@ -1,79 +1,143 @@
 'use client';
-import { useState } from "react";
-import { FaEdit, FaTrash, FaSave } from "react-icons/fa";
+import { useEffect, useState } from "react";
+import { FaEdit, FaTrash, FaKey, FaSave, FaTimes } from "react-icons/fa";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { getToken } from '@/lib/tokenManager';
+import Alert from "@/components/Alert";
 
+// Record type for full room data
 type Room = {
+  id: number;
   room_number: string;
   room_type: string;
-  status: string;
+  status: 'available' | 'booked' | 'maintenance';
   price: number;
   description: string;
 };
 
-const initialRoomData: Room[] = [
-  {
-    room_number: "101",
-    room_type: "Single",
-    status: "available",
-    price: 75.0,
-    description: "A cozy single room with sea view.",
-  },
-  {
-    room_number: "102",
-    room_type: "Double",
-    status: "booked",
-    price: 120.0,
-    description: "Spacious double room with garden view.",
-  },
-  {
-    room_number: "103",
-    room_type: "Suite",
-    status: "maintenance",
-    price: 250.0,
-    description: "Luxurious suite with a private balcony.",
-  },
-];
+// Define the type for the alert state
+type AlertType = {
+  type: 'success' | 'danger' | 'warning';
+  message: string;
+} | null;
 
-const ListRooms = () => {
-  const [rooms, setRooms] = useState<Room[]>(initialRoomData);
+const RoomList = () => {
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [editRoomIndex, setEditRoomIndex] = useState<number | null>(null);
+  const [editRoomId, setEditRoomId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Room>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [alert, setAlert] = useState<AlertType>(null);
 
-  // Handle form input changes for editing
+  // Fetch rooms from the API
+  useEffect(() => {
+    const fetchRooms = async () => {
+      const token = getToken();
+      if (!token) {
+        setError("Authorization token not available.");
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:9092/rooms/getRooms", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch rooms");
+        }
+
+        const data = await response.json();
+        setRooms(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred while fetching rooms.");
+      }
+    };
+
+    fetchRooms();
+  }, []);
+
+  // Handle room field edit
+  const handleRoomEdit = (id: number) => {
+    const roomToEdit = rooms.find((room) => room.id === id);
+    if (roomToEdit) {
+      setEditFormData(roomToEdit);
+      setEditRoomId(id);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditRoomId(null);
+    setEditFormData({});
+  };
+
+  const handleSaveRoom = async (id: number) => {
+    try {
+      const token = getToken();
+      const response = await fetch(`http://localhost:9092/rooms/updateRoom?id=${id}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (!response.ok) throw new Error("Failed to update room data");
+
+      // Update local state after saving
+      setRooms((prevRooms) =>
+        prevRooms.map((room) => (room.id === id ? { ...room, ...editFormData } : room))
+      );
+      setEditRoomId(null);
+      setEditFormData({});
+
+      // Show success alert
+      setAlert({ type: "success", message: "Room information updated successfully!" });
+    } catch (err) {
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while updating room data." });
+    }
+  };
+
+  const handleDeleteRoom = async (id: number) => {
+    try {
+      const token = getToken();
+      const response = await fetch(`http://localhost:9092/rooms/deleteRoom?id=${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to delete room");
+
+      // Remove the room from the local state
+      setRooms((prevRooms) => prevRooms.filter((room) => room.id !== id));
+
+      // Show success alert
+      setAlert({ type: "success", message: "Room deleted successfully!" });
+    } catch (err) {
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while deleting the room." });
+    }
+  };
+
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setEditFormData({
       ...editFormData,
-      [name]: name === "price" ? parseFloat(value) : value, // Parse price to number
+      [name]: name === "price" ? parseFloat(value) : value,
     });
-  };
-
-  // Handle the edit action
-  const handleEdit = (index: number) => {
-    setEditRoomIndex(index); // Set the current room in edit mode
-    setEditFormData(rooms[index]); // Pre-fill the edit form with current room data
-  };
-
-  // Save the edited room
-  const handleSave = (index: number) => {
-    setRooms((prevRooms) =>
-      prevRooms.map((room, i) => (i === index ? { ...room, ...editFormData } : room))
-    );
-    setEditRoomIndex(null); // Exit edit mode
-    setEditFormData({}); // Clear the edit form data
-  };
-
-  // Delete a room (dummy functionality)
-  const handleDelete = (index: number) => {
-    setRooms((prevRooms) => prevRooms.filter((_, i) => i !== index));
   };
 
   // Function to filter rooms based on the search term
   const filteredRooms = rooms.filter((room) =>
-    room.room_number.includes(searchTerm) ||
+    room.room_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
     room.room_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
     room.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
     room.description.toLowerCase().includes(searchTerm.toLowerCase())
@@ -82,6 +146,8 @@ const ListRooms = () => {
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Rooms" />
+
+      {alert && <Alert type={alert.type} message={alert.message} />}
 
       <div className="flex flex-col gap-10">
         <div className="flex justify-between items-center mb-4">
@@ -99,7 +165,7 @@ const ListRooms = () => {
             <table className="w-full table-auto">
               <thead>
                 <tr className="bg-gray-2 text-left dark:bg-meta-4">
-                  <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white xl:pl-11">
+                  <th className="min-w-[220px] px-4 py-4 font-medium text-black dark:text-white xl:pl-11">
                     Room Number
                   </th>
                   <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
@@ -120,10 +186,9 @@ const ListRooms = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredRooms.map((room, index) => (
-                  <tr key={index}>
-                    {/* Editable Row */}
-                    {editRoomIndex === index ? (
+                {filteredRooms.map((room) => (
+                  <tr key={room.id}>
+                    {editRoomId === room.id ? (
                       <>
                         <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
                           <input
@@ -175,10 +240,16 @@ const ListRooms = () => {
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <button
-                            onClick={() => handleSave(index)}
+                            onClick={() => handleSaveRoom(room.id)}
                             className="hover:text-primary"
                           >
                             <FaSave />
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="hover:text-red-500 ml-3"
+                          >
+                            <FaTimes />
                           </button>
                         </td>
                       </>
@@ -218,13 +289,13 @@ const ListRooms = () => {
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <div className="flex items-center space-x-3.5">
                             <button
-                              onClick={() => handleEdit(index)}
+                              onClick={() => handleRoomEdit(room.id)}
                               className="hover:text-primary"
                             >
                               <FaEdit />
                             </button>
                             <button
-                              onClick={() => handleDelete(index)}
+                              onClick={() => handleDeleteRoom(room.id)}
                               className="hover:text-primary"
                             >
                               <FaTrash />
@@ -244,4 +315,4 @@ const ListRooms = () => {
   );
 };
 
-export default ListRooms;
+export default RoomList;
