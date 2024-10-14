@@ -27,7 +27,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/auth_service/Config.toml:/home/ballerina/Config.toml
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/Config.toml:/home/ballerina/Config.toml
 
   user_service:
     image: hirunaofficial/user_service:v0.1.0
@@ -36,7 +36,16 @@ services:
     ports:
       - "9091:9091"
     volumes:
-      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/user_service/Config.toml:/home/ballerina/Config.toml
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/Config.toml:/home/ballerina/Config.toml
+
+  room_service:
+    image: hirunaofficial/room_service:v0.1.0
+    build:
+      context: ./room_service/target/docker/room_service
+    ports:
+      - "9092:9092"
+    volumes:
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/Config.toml:/home/ballerina/Config.toml
 
   email_service:
     image: hirunaofficial/email_service:v0.1.0
