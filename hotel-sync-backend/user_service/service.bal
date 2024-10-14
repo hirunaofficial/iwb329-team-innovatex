@@ -21,11 +21,9 @@ function hashPassword(string password) returns string {
 
 @http:ServiceConfig {
     cors: {
-        allowOrigins: ["http://localhost:3000"],
-        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:8080"],
         allowHeaders: ["Authorization", "Content-Type"],
-        allowCredentials: false,
-        exposeHeaders: ["X-CUSTOM-HEADER"],
+        allowCredentials: true,
         maxAge: 3600
     }
 }
@@ -38,18 +36,23 @@ service /users on new http:Listener(9091) {
     }
 
     // Add a new user with password
-    resource function post addUser(@http:Payload UserWithPassword user, http:Request req) returns http:Created|http:Unauthorized|error {
+    resource function post addUser(@http:Payload UserWithPassword user, http:Request req) returns http:Created|http:Unauthorized|http:NoContent|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
         string hashedPassword = hashPassword(user.password_hash ?: "");
 
-        _ = check self.db->execute(`
+        sql:ExecutionResult result = check self.db->execute(`
             INSERT INTO users (nic, name, email, phone_number, password_hash, role, address, created_at)
             VALUES (${user.nic}, ${user.name}, ${user.email}, ${user.phone_number}, ${hashedPassword}, ${user.role}, ${user.address}, NOW());
         `);
-        return http:CREATED;
+        int? count = result.affectedRowCount;
+        if count is int && count > 0 {
+            return http:CREATED;
+        } else {
+            return http:NO_CONTENT;
+        }
     }
 
     // Fetch all users without password_hash
@@ -63,22 +66,27 @@ service /users on new http:Listener(9091) {
     }
 
     // Delete a user by ID
-    resource function delete deleteUser(int id, http:Request req) returns http:Ok|http:Unauthorized|error {
+    resource function delete deleteUser(int id, http:Request req) returns http:Ok|http:Unauthorized|http:NoContent|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
-        _ = check self.db->execute(`DELETE FROM users WHERE id = ${id}`);
-        return http:OK;
+        sql:ExecutionResult result = check self.db->execute(`DELETE FROM users WHERE id = ${id}`);
+        int? count = result.affectedRowCount;
+        if count is int && count > 0 {
+            return http:OK;
+        } else {
+            return http:NO_CONTENT;
+        }
     }
 
     // Update user information without password
-    resource function put updateUserInfo(int id, @http:Payload UserWithoutPassword updatedUser, http:Request req) returns http:Ok|http:Unauthorized|error {
+    resource function put updateUserInfo(int id, @http:Payload UserWithoutPassword updatedUser, http:Request req) returns http:Ok|http:Unauthorized|http:NoContent|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
-        _ = check self.db->execute(`
+        sql:ExecutionResult result = check self.db->execute(`
             UPDATE users 
             SET nic = ${updatedUser.nic ?: ""}, 
                 name = ${updatedUser.name ?: ""}, 
@@ -90,31 +98,41 @@ service /users on new http:Listener(9091) {
             WHERE id = ${id}
         `);
 
-        return http:OK;
+        int? count = result.affectedRowCount;
+        if count is int && count > 0 {
+            return http:OK;
+        } else {
+            return http:NO_CONTENT;
+        }
     }
 
     // Dedicated method to update only the password
-    resource function put updatePassword(int id, @http:Payload PasswordUpdate passwordUpdate, http:Request req) returns http:Ok|http:Unauthorized|error {
+    resource function put updatePassword(int id, @http:Payload PasswordUpdate passwordUpdate, http:Request req) returns http:Ok|http:Unauthorized|http:NoContent|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
         string hashedPassword = hashPassword(passwordUpdate.new_password);
 
-        _ = check self.db->execute(`
+        sql:ExecutionResult result = check self.db->execute(`
             UPDATE users
             SET password_hash = ${hashedPassword}
             WHERE id = ${id}
         `);
 
-        return http:OK;
+        int? count = result.affectedRowCount;
+        if count is int && count > 0 {
+            return http:OK;
+        } else {
+            return http:NO_CONTENT;
+        }
     }
 
     // JWT validation function
     function validateJWT(http:Request req) returns boolean {
         var authHeaderResult = req.getHeader("Authorization");
-        
-        if authHeaderResult is string {
+
+        if authHeaderResult is string && authHeaderResult.startsWith("Bearer ") {
             string token = authHeaderResult.substring(7);
 
             jwt:ValidatorConfig validatorConfig = {
