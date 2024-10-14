@@ -10,11 +10,9 @@ listener http:Listener emailListener = new(9099);
 
 @http:ServiceConfig {
     cors: {
-        allowOrigins: ["http://localhost:3000"],
-        allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowOrigins: ["http://localhost", "http://localhost:3000", "http://localhost:8080"],
         allowHeaders: ["Authorization", "Content-Type"],
-        allowCredentials: false,
-        exposeHeaders: ["X-CUSTOM-HEADER"],
+        allowCredentials: true,
         maxAge: 3600
     }
 }
