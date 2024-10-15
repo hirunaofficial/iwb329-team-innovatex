@@ -56,6 +56,15 @@ services:
     volumes:
       - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/Config.toml:/home/ballerina/Config.toml
 
+  request_service:
+    image: hirunaofficial/request_service:v0.1.0
+    build:
+      context: ./request_service/target/docker/request_service
+    ports:
+      - "9094:9094"
+    volumes:
+      - E:/Ballerina/iwb329-team-innovatex/hotel-sync-backend/Config.toml:/home/ballerina/Config.toml
+
   email_service:
     image: hirunaofficial/email_service:v0.1.0
     build:
