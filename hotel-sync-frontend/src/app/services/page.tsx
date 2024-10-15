@@ -1,51 +1,65 @@
 'use client';
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FaEdit, FaTrash, FaSave } from "react-icons/fa";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
+import { getToken } from '@/lib/tokenManager';
+import Alert from "@/components/Alert";
 
 // Define the type for service requests
 type ServiceRequest = {
-  user_id: number;
-  request_text: string;
+  id: number;
+  description: string;  // Updated to match API
   status: "pending" | "in_progress" | "completed";
-  assigned_to: number;
+  assigned_to_staff: number;  // Updated to match API
   created_at: string;
   updated_at: string;
 };
 
-const initialServiceRequests: ServiceRequest[] = [
-  {
-    user_id: 1,
-    request_text: "Room cleaning required",
-    status: "pending",
-    assigned_to: 3,
-    created_at: "2024-10-01 09:30:00",
-    updated_at: "2024-10-01 09:30:00",
-  },
-  {
-    user_id: 2,
-    request_text: "Air conditioner malfunctioning",
-    status: "in_progress",
-    assigned_to: 4,
-    created_at: "2024-10-02 12:00:00",
-    updated_at: "2024-10-02 14:00:00",
-  },
-  {
-    user_id: 3,
-    request_text: "Need extra towels",
-    status: "completed",
-    assigned_to: 2,
-    created_at: "2024-09-28 11:45:00",
-    updated_at: "2024-09-28 12:00:00",
-  },
-];
+// Define the type for the alert state
+type AlertType = {
+  type: 'success' | 'danger' | 'warning';
+  message: string;
+} | null;
 
 const ListServiceRequests = () => {
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>(initialServiceRequests);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<ServiceRequest>>({});
+  const [alert, setAlert] = useState<AlertType>(null);
+
+  // Fetch service requests from the API
+  useEffect(() => {
+    const fetchServiceRequests = async () => {
+      const token = getToken();
+      if (!token) {
+        setAlert({ type: "danger", message: "Authorization token not available." });
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:9094/serviceRequests/getServiceRequests", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch service requests");
+        }
+
+        const data = await response.json();
+        setServiceRequests(data);
+      } catch (err) {
+        setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while fetching service requests." });
+      }
+    };
+
+    fetchServiceRequests();
+  }, []);
 
   // Handle form input changes for editing
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -63,31 +77,78 @@ const ListServiceRequests = () => {
   };
 
   // Save the edited request
-  const handleSave = (index: number) => {
-    setServiceRequests((prevRequests) =>
-      prevRequests.map((request, i) =>
-        i === index ? { ...request, ...editFormData } : request
-      )
-    );
-    setEditIndex(null); // Exit edit mode
+  const handleSave = async (id: number) => {
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: "danger", message: "Authorization token not available." });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:9094/serviceRequests/updateServiceRequest/${id}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update service request");
+      }
+
+      setServiceRequests((prevRequests) =>
+        prevRequests.map((request) => (request.id === id ? { ...request, ...editFormData } : request))
+      );
+      setEditIndex(null);
+      setEditFormData({});
+      setAlert({ type: "success", message: "Service request updated successfully!" });
+    } catch (err) {
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while updating the service request." });
+    }
   };
 
-  // Delete request (dummy functionality)
-  const handleDelete = (index: number) => {
-    setServiceRequests((prevRequests) => prevRequests.filter((_, i) => i !== index));
+  // Delete request
+  const handleDelete = async (id: number) => {
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: "danger", message: "Authorization token not available." });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:9094/serviceRequests/deleteServiceRequest/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete service request");
+      }
+
+      setServiceRequests((prevRequests) => prevRequests.filter((request) => request.id !== id));
+      setAlert({ type: "success", message: "Service request deleted successfully!" });
+    } catch (err) {
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while deleting the service request." });
+    }
   };
 
   // Function to filter service requests based on the search term
   const filteredRequests = serviceRequests.filter((request) =>
-    request.request_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    request.user_id.toString().includes(searchTerm) ||
-    request.assigned_to.toString().includes(searchTerm) ||
+    request.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    request.assigned_to_staff.toString().includes(searchTerm) ||
     request.status.includes(searchTerm.toLowerCase())
   );
 
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Service Requests" />
+
+      {alert && <Alert type={alert.type} message={alert.message} />}
 
       <div className="flex flex-col gap-10">
         <div className="flex justify-between items-center mb-4">
@@ -106,16 +167,13 @@ const ListServiceRequests = () => {
               <thead>
                 <tr className="bg-gray-2 text-left dark:bg-meta-4">
                   <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white xl:pl-11">
-                    User ID
+                    Assigned Staff ID
                   </th>
                   <th className="min-w-[300px] px-4 py-4 font-medium text-black dark:text-white">
                     Service Request
                   </th>
                   <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
                     Status
-                  </th>
-                  <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
-                    Assigned To (Staff ID)
                   </th>
                   <th className="min-w-[200px] px-4 py-4 font-medium text-black dark:text-white">
                     Created At
@@ -130,19 +188,23 @@ const ListServiceRequests = () => {
               </thead>
               <tbody>
                 {filteredRequests.map((request, index) => (
-                  <tr key={index}>
+                  <tr key={request.id}>
                     {editIndex === index ? (
                       <>
                         <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
-                          <h5 className="font-medium text-black dark:text-white">
-                            {request.user_id}
-                          </h5>
+                          <input
+                            type="number"
+                            name="assigned_to_staff"
+                            value={editFormData.assigned_to_staff || ""}
+                            onChange={handleEditFormChange}
+                            className="w-full border px-2 py-1"
+                          />
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <input
                             type="text"
-                            name="request_text"
-                            value={editFormData.request_text || ""}
+                            name="description"
+                            value={editFormData.description || ""}
                             onChange={handleEditFormChange}
                             className="w-full border px-2 py-1"
                           />
@@ -160,15 +222,6 @@ const ListServiceRequests = () => {
                           </select>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                          <input
-                            type="number"
-                            name="assigned_to"
-                            value={editFormData.assigned_to || ""}
-                            onChange={handleEditFormChange}
-                            className="w-full border px-2 py-1"
-                          />
-                        </td>
-                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <p className="text-black dark:text-white">
                             {new Date(request.created_at).toLocaleString()}
                           </p>
@@ -180,7 +233,7 @@ const ListServiceRequests = () => {
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <button
-                            onClick={() => handleSave(index)}
+                            onClick={() => handleSave(request.id)}
                             className="hover:text-primary"
                           >
                             <FaSave />
@@ -191,12 +244,12 @@ const ListServiceRequests = () => {
                       <>
                         <td className="border-b border-[#eee] px-4 py-5 pl-9 dark:border-strokedark xl:pl-11">
                           <h5 className="font-medium text-black dark:text-white">
-                            {request.user_id}
+                            {request.assigned_to_staff}
                           </h5>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <p className="text-black dark:text-white">
-                            {request.request_text}
+                            {request.description}
                           </p>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
@@ -210,11 +263,6 @@ const ListServiceRequests = () => {
                             }`}
                           >
                             {request.status}
-                          </p>
-                        </td>
-                        <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                          <p className="text-black dark:text-white">
-                            {request.assigned_to}
                           </p>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
@@ -236,7 +284,7 @@ const ListServiceRequests = () => {
                               <FaEdit />
                             </button>
                             <button
-                              onClick={() => handleDelete(index)}
+                              onClick={() => handleDelete(request.id)}
                               className="hover:text-primary"
                             >
                               <FaTrash />
