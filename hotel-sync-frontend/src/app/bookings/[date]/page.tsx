@@ -4,6 +4,8 @@ import { FaEdit, FaTrash, FaSave } from 'react-icons/fa';
 import { useParams } from 'next/navigation';
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import DefaultLayout from "@/components/Layouts/DefaultLayout";
+import { getToken } from '@/lib/tokenManager';
+import Alert from "@/components/Alert";
 
 interface Booking {
   id: number;
@@ -17,28 +19,52 @@ interface Booking {
   status: string;
 }
 
-const sampleBookings: Booking[] = [
-  { id: 1, date: "2024-12-01", guest: "John Doe", room_category: "Single", room_id: "101", check_in_date: "2024-12-01", check_out_date: "2024-12-02", total_price: 100, status: "pending" },
-  { id: 2, date: "2024-12-01", guest: "Jane Smith", room_category: "Double", room_id: "102", check_in_date: "2024-12-01", check_out_date: "2024-12-03", total_price: 200, status: "approved" },
-  { id: 3, date: "2024-12-25", guest: "Michael Johnson", room_category: "Suite", room_id: "203", check_in_date: "2024-12-25", check_out_date: "2024-12-28", total_price: 500, status: "canceled" },
-  { id: 4, date: "2024-12-10", guest: "Sarah Brown", room_category: "Single", room_id: "105", check_in_date: "2024-12-10", check_out_date: "2024-12-11", total_price: 120, status: "pending" },
-];
+// Define the type for the alert state
+type AlertType = {
+  type: 'success' | 'danger' | 'warning';
+  message: string;
+} | null;
 
 const BookingsForDate: React.FC = () => {
   const { date } = useParams();
-  const [bookings, setBookings] = useState<Booking[]>(sampleBookings);
-  const [bookingsForDate, setBookingsForDate] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [editBookingId, setEditBookingId] = useState<number | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Booking>>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [alert, setAlert] = useState<AlertType>(null);
 
+  // Fetch bookings for the selected date
   useEffect(() => {
-    // Filter bookings by date whenever the route changes
-    const filteredBookings = date
-      ? bookings.filter((booking) => booking.date === date)
-      : bookings;
-    setBookingsForDate(filteredBookings);
-  }, [date, bookings]);
+    const fetchBookings = async () => {
+      const token = getToken();
+      if (!token) {
+        setAlert({ type: "danger", message: "Authorization token not available." });
+        return;
+      }
+
+      try {
+        const response = await fetch("http://localhost:9093/bookings/getBookingsByDate", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ date }), // Send the selected date as the body
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch bookings");
+        }
+
+        const data: Booking[] = await response.json();
+        setBookings(data);
+      } catch (err) {
+        setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while fetching bookings." });
+      }
+    };
+
+    fetchBookings();
+  }, [date]); // Trigger this effect when the date changes
 
   // Handle form input changes for editing
   const handleEditFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -57,25 +83,72 @@ const BookingsForDate: React.FC = () => {
   };
 
   // Save the edited booking
-  const handleSave = (id: number) => {
-    setBookings((prevBookings) =>
-      prevBookings.map((booking) =>
-        booking.id === id ? { ...booking, ...editFormData } : booking
-      )
-    );
-    setEditBookingId(null);
+  const handleSave = async (id: number) => {
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: "danger", message: "Authorization token not available." });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:9093/bookings/${id}`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(editFormData),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to update booking");
+      }
+
+      setBookings((prevBookings) =>
+        prevBookings.map((booking) =>
+          booking.id === id ? { ...booking, ...editFormData } : booking
+        )
+      );
+      setEditBookingId(null);
+      setAlert({ type: "success", message: "Booking updated successfully!" });
+    } catch (err) {
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while updating the booking." });
+    }
   };
 
   // Delete booking function with a confirmation
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     const confirmDelete = confirm("Are you sure you want to delete this booking?");
-    if (confirmDelete) {
-      setBookings(bookings.filter((booking) => booking.id !== id));
+    if (!confirmDelete) return;
+
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: "danger", message: "Authorization token not available." });
+      return;
+    }
+
+    try {
+      const response = await fetch(`http://localhost:9093/bookings/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete booking");
+      }
+
+      setBookings((prevBookings) => prevBookings.filter((booking) => booking.id !== id));
+      setAlert({ type: "success", message: "Booking deleted successfully!" });
+    } catch (err) {
+      setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while deleting the booking." });
     }
   };
 
   // Function to filter bookings based on the search term
-  const filteredBookings = bookingsForDate.filter((booking) =>
+  const filteredBookings = bookings.filter((booking) =>
     booking.guest.toLowerCase().includes(searchTerm.toLowerCase()) ||
     booking.room_category.toLowerCase().includes(searchTerm.toLowerCase()) ||
     booking.room_id.includes(searchTerm) ||
@@ -86,6 +159,8 @@ const BookingsForDate: React.FC = () => {
     <DefaultLayout>
       <div className="mx-auto max-w-7xl">
         <Breadcrumb pageName={date ? `Bookings for ${date}` : "All Bookings"} />
+
+        {alert && <Alert type={alert.type} message={alert.message} />}
 
         <div className="flex flex-col gap-10">
           <div className="flex justify-between items-center mb-4">
