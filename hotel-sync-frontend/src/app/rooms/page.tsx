@@ -79,30 +79,31 @@ const RoomList = () => {
   const handleSaveRoom = async (id: number) => {
     try {
       const token = getToken();
+  
+      const { id: _, ...updateData } = editFormData;
+  
       const response = await fetch(`http://localhost:9092/rooms/updateRoom?id=${id}`, {
         method: "PUT",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify(updateData),
       });
-
+  
       if (!response.ok) throw new Error("Failed to update room data");
-
-      // Update local state after saving
+  
       setRooms((prevRooms) =>
-        prevRooms.map((room) => (room.id === id ? { ...room, ...editFormData } : room))
+        prevRooms.map((room) => (room.id === id ? { ...room, ...updateData } : room))
       );
       setEditRoomId(null);
       setEditFormData({});
-
-      // Show success alert
+  
       setAlert({ type: "success", message: "Room information updated successfully!" });
     } catch (err) {
       setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while updating room data." });
     }
-  };
+  };  
 
   const handleDeleteRoom = async (id: number) => {
     try {
