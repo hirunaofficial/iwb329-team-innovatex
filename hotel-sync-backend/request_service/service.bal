@@ -73,7 +73,8 @@ service /serviceRequests on new http:Listener(9094) {
         sql:ParameterizedQuery query = `UPDATE service_requests 
                                         SET description = ${request.description}, 
                                             assigned_to_staff = ${request.assigned_to_staff}, 
-                                            status = ${request.status}
+                                            status = ${request.status},
+                                            updated_at = NOW() 
                                         WHERE id = ${id}`;
         sql:ExecutionResult result = check self.db->execute(query);
 
