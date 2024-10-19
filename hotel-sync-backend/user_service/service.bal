@@ -35,6 +35,17 @@ service /users on new http:Listener(9091) {
         self.db = check new (host, user, password, database, port);
     }
 
+    // Fetch all staff members
+    resource function get getStaffMembers(http:Request req) returns StaffMember[]|http:Unauthorized|error {
+        if !self.validateJWT(req) {
+            return http:UNAUTHORIZED;
+        }
+
+        sql:ParameterizedQuery query = `SELECT id, name FROM users WHERE role = 'Staff'`;
+        stream<StaffMember, sql:Error?> staffMemberStream = self.db->query(query);
+        return from StaffMember staff in staffMemberStream select staff;
+    }
+
     // Add a new user with password
     resource function post addUser(@http:Payload UserWithPassword user, http:Request req) returns http:Created|http:Unauthorized|http:NoContent|error {
         if !self.validateJWT(req) {

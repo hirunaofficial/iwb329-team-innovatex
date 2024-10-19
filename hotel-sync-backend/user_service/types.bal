@@ -25,3 +25,9 @@ type UserWithoutPassword record {|
 type PasswordUpdate record {| 
     string new_password;
 |};
+
+// Record type for staff members
+type StaffMember record {| 
+    int id;
+    string name;
+|};
