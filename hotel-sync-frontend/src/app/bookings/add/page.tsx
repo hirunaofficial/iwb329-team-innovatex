@@ -2,28 +2,18 @@
 import { useState, useEffect } from 'react';
 import Breadcrumb from '@/components/Breadcrumbs/Breadcrumb';
 import DefaultLayout from '@/components/Layouts/DefaultLayout';
+import { getToken } from '@/lib/tokenManager';
+import Alert from "@/components/Alert";
+import EmailTemplate from "@/components/EmailTemplate";
 
 type RoomCategory = 'Single' | 'Double' | 'Suite';
 
 interface Room {
-  id: number;
-  name: string;
+  id: string;
+  room_type: RoomCategory;
+  room_number: string;
+  price: number;
 }
-
-const roomData: Record<RoomCategory, Room[]> = {
-  Single: [
-    { id: 1, name: 'Room 101' },
-    { id: 2, name: 'Room 102' },
-  ],
-  Double: [
-    { id: 3, name: 'Room 201' },
-    { id: 4, name: 'Room 202' },
-  ],
-  Suite: [
-    { id: 5, name: 'Room 301' },
-    { id: 6, name: 'Room 302' },
-  ],
-};
 
 const AddBookingForm = () => {
   const [formData, setFormData] = useState({
@@ -31,57 +21,213 @@ const AddBookingForm = () => {
     room_id: '',
     check_in_date: '',
     check_out_date: '',
-    total_price: '',
-    status: 'pending', // Default status
+    total_price: 0,
+    user_id: 1, // Replace with actual user ID as needed
   });
 
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
+  const [allRooms, setAllRooms] = useState<Room[]>([]);
+  const [alert, setAlert] = useState<{ type: 'success' | 'danger', message: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
+
+    if (e.target.name === 'check_in_date' || e.target.name === 'check_out_date') {
+      updateTotalPrice(e.target.value, e.target.name);
+    }
   };
 
-  // Effect to fetch rooms based on the selected category
+  // Fetch available rooms
+  const fetchRooms = async () => {
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: 'danger', message: "Authorization token not available." });
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:9092/rooms/getRooms", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch rooms");
+      }
+
+      const data: Room[] = await response.json();
+      setAllRooms(data);
+    } catch (err) {
+      setAlert({ type: 'danger', message: "An error occurred while fetching rooms." });
+    }
+  };
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  // Effect to update available rooms based on the selected category
   useEffect(() => {
     if (formData.room_category) {
-      // Fetch rooms based on the selected category
-      const rooms = roomData[formData.room_category as RoomCategory] || [];
-      setAvailableRooms(rooms);
+      const filteredRooms = allRooms.filter(
+        room => room.room_type === formData.room_category
+      );
+      setAvailableRooms(filteredRooms);
     } else {
       setAvailableRooms([]);
     }
-  }, [formData.room_category]);
+  }, [formData.room_category, allRooms]);
+
+  // Automatically update the total price based on the room rate and date difference
+  const updateTotalPrice = (newDateValue: string, fieldName: string) => {
+    const checkInDate = fieldName === 'check_in_date' ? new Date(newDateValue) : new Date(formData.check_in_date);
+    const checkOutDate = fieldName === 'check_out_date' ? new Date(newDateValue) : new Date(formData.check_out_date);
+    const selectedRoom = allRooms.find(room => room.room_number === formData.room_id);
+
+    if (checkInDate && checkOutDate && selectedRoom) {
+      const daysDifference = Math.floor((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysDifference > 0) {
+        const updatedTotalPrice = daysDifference * selectedRoom.price;
+        setFormData((prev) => ({
+          ...prev,
+          total_price: updatedTotalPrice,
+        }));
+      }
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Simulating form submission to a backend API
+    // Check for overlapping bookings
+    const isOverlapping = await checkForOverlappingBookings();
+    if (isOverlapping) {
+      setAlert({ type: 'danger', message: "Selected room is already booked for the given dates." });
+      return;
+    }
+
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: 'danger', message: "Authorization token not available." });
+      return;
+    }
+
     try {
-      const response = await fetch('/api/bookings', {
+      const response = await fetch('http://localhost:9093/bookings/addBooking', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          total_price: parseFloat(formData.total_price.toString()), // Convert to decimal
+          status: 'approved',
+        }),
       });
 
-      const result = await response.json();
-      if (response.ok) {
-        alert('Booking created successfully!');
+      if (response.status === 201) {
+        setAlert({ type: 'success', message: 'Booking created successfully!' });
+        setFormData({
+          room_category: '',
+          room_id: '',
+          check_in_date: '',
+          check_out_date: '',
+          total_price: 0,
+          user_id: 1, // Reset as needed
+        });
+        await sendEmailToUser();
       } else {
-        alert(result.message || 'Failed to create booking.');
+        const result = await response.json();
+        setAlert({ type: 'danger', message: result.message || 'Failed to create booking.' });
       }
     } catch (error) {
-      alert('An error occurred. Please try again.');
+      setAlert({ type: 'danger', message: 'An error occurred. Please try again.' });
+    }
+  };
+
+  // Function to send email after booking
+  const sendEmailToUser = async () => {
+    const emailBody = EmailTemplate({
+      children: `
+        <p>Dear User,</p>
+        <p>Your booking has been confirmed. Here are the details:</p>
+        <p><strong>Room Category:</strong> ${formData.room_category}</p>
+        <p><strong>Room ID:</strong> ${formData.room_id}</p>
+        <p><strong>Check-In Date:</strong> ${formData.check_in_date}</p>
+        <p><strong>Check-Out Date:</strong> ${formData.check_out_date}</p>
+        <p><strong>Total Price:</strong> ${formData.total_price}</p>
+      `,
+    });
+
+    const emailData = {
+      to: 'user@example.com', // Replace with actual user email
+      subject: "Booking Confirmation",
+      body: emailBody,
+    };
+
+    try {
+      const response = await fetch("http://localhost:9099/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!response.ok) {
+        setAlert({ type: 'danger', message: "Failed to send booking confirmation email." });
+      }
+    } catch (error) {
+      setAlert({ type: 'danger', message: "Error sending booking confirmation email." });
+    }
+  };
+
+  // Function to check for overlapping bookings
+  const checkForOverlappingBookings = async () => {
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: 'danger', message: "Authorization token not available." });
+      return false;
+    }
+
+    try {
+      const response = await fetch("http://localhost:9093/bookings/getBookingsByDateRange", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          room_id: formData.room_id,
+          check_in_date: formData.check_in_date,
+          check_out_date: formData.check_out_date,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to check overlapping bookings");
+      }
+
+      const data = await response.json();
+      return data.length > 0;
+    } catch (err) {
+      setAlert({ type: 'danger', message: "An error occurred while checking availability." });
+      return false;
     }
   };
 
   return (
     <DefaultLayout>
       <Breadcrumb pageName="Add Booking" />
+
+      {alert && <Alert type={alert.type} message={alert.message} />}
 
       <div className="flex justify-center">
         <div className="w-full">
@@ -101,6 +247,7 @@ const AddBookingForm = () => {
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     required
+                    value={formData.room_category}
                   >
                     <option value="">Select Room Category</option>
                     <option value="Single">Single</option>
@@ -111,19 +258,20 @@ const AddBookingForm = () => {
 
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                    Room ID
+                    Room
                   </label>
                   <select
                     name="room_id"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     required
+                    value={formData.room_id}
                     disabled={!availableRooms.length}
                   >
                     <option value="">Select Room</option>
                     {availableRooms.map((room) => (
-                      <option key={room.id} value={room.id}>
-                        {room.name}
+                      <option key={room.room_number} value={room.room_number}>
+                        {room.room_number}
                       </option>
                     ))}
                   </select>
@@ -139,6 +287,7 @@ const AddBookingForm = () => {
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     required
+                    value={formData.check_in_date}
                   />
                 </div>
 
@@ -152,6 +301,7 @@ const AddBookingForm = () => {
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     required
+                    value={formData.check_out_date}
                   />
                 </div>
 
@@ -162,28 +312,11 @@ const AddBookingForm = () => {
                   <input
                     type="number"
                     name="total_price"
-                    placeholder="Enter Total Price"
                     step="0.01"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    onChange={handleChange}
-                    required
+                    value={formData.total_price}
+                    readOnly
                   />
-                </div>
-
-                <div className="mb-4.5">
-                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
-                    Status
-                  </label>
-                  <select
-                    name="status"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    onChange={handleChange}
-                    value={formData.status}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="approved">Approved</option>
-                    <option value="canceled">Canceled</option>
-                  </select>
                 </div>
 
                 <button className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray hover:bg-opacity-90">
