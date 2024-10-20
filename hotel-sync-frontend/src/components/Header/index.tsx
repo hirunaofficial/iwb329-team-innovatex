@@ -75,31 +75,14 @@ const Header = (props: {
           </Link>
         </div>
 
-        {userRole === "Admin" || userRole === "Staff" ? (
-          <div className="hidden sm:block">
-            <form action="rooms" method="POST">
-              <div className="relative">
-                <button className="absolute left-0 top-1/2 -translate-y-1/2">
-                  <FaSearch
-                    className="fill-body hover:fill-primary dark:fill-bodydark dark:hover:fill-primary"
-                    size={20}
-                  />
-                </button>
-
-                <input
-                  type="text"
-                  placeholder="Type to search..."
-                  className="w-full bg-transparent pl-9 pr-4 font-medium focus:outline-none xl:w-125"
-                />
-              </div>
-            </form>
-          </div>
-        ) : null}
+        <div className="hidden sm:block"></div>
 
         <div className="flex items-center gap-3 2xsm:gap-7">
           <ul className="flex items-center gap-2 2xsm:gap-4">
             <DarkModeSwitcher />
-            <DropdownNotification />
+            {userRole === "Admin" || userRole === "Staff" ? (
+              <DropdownNotification />
+            ) : null}
           </ul>
           <DropdownUser />
         </div>

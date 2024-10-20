@@ -15,6 +15,12 @@ interface Room {
   price: number;
 }
 
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
 const AddBookingForm = () => {
   const [formData, setFormData] = useState({
     room_category: '' as RoomCategory | '',
@@ -22,21 +28,23 @@ const AddBookingForm = () => {
     check_in_date: '',
     check_out_date: '',
     total_price: 0,
-    user_id: 1, // Replace with actual user ID as needed
+    user_id: 0, // Ensure user_id is an integer
   });
 
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [allRooms, setAllRooms] = useState<Room[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [alert, setAlert] = useState<{ type: 'success' | 'danger', message: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: name === "user_id" ? parseInt(value) : value, // Ensure user_id is an integer
     });
 
-    if (e.target.name === 'check_in_date' || e.target.name === 'check_out_date') {
-      updateTotalPrice(e.target.value, e.target.name);
+    if (name === 'check_in_date' || name === 'check_out_date') {
+      updateTotalPrice(value, name);
     }
   };
 
@@ -68,8 +76,37 @@ const AddBookingForm = () => {
     }
   };
 
+  // Fetch users
+  const fetchUsers = async () => {
+    const token = getToken();
+    if (!token) {
+      setAlert({ type: 'danger', message: "Authorization token not available." });
+      return;
+    }
+
+    try {
+      const response = await fetch("http://localhost:9091/users/getUsers", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch users");
+      }
+
+      const data: User[] = await response.json();
+      setUsers(data);
+    } catch (err) {
+      setAlert({ type: 'danger', message: "An error occurred while fetching users." });
+    }
+  };
+
   useEffect(() => {
     fetchRooms();
+    fetchUsers();
   }, []);
 
   // Effect to update available rooms based on the selected category
@@ -140,7 +177,7 @@ const AddBookingForm = () => {
           check_in_date: '',
           check_out_date: '',
           total_price: 0,
-          user_id: 1, // Reset as needed
+          user_id: 0, // Reset as needed
         });
         await sendEmailToUser();
       } else {
@@ -238,6 +275,28 @@ const AddBookingForm = () => {
 
             <form onSubmit={handleSubmit}>
               <div className="p-6.5">
+                {/* User Selection */}
+                <div className="mb-4.5">
+                  <label className="mb-3 block text-sm font-medium text-black dark:text-white">
+                    User
+                  </label>
+                  <select
+                    name="user_id"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    onChange={handleChange}
+                    required
+                    value={formData.user_id}
+                  >
+                    <option value="">Select User</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Room Category, Room, Check-In Date, Check-Out Date, and Total Price fields */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     Room Category

@@ -29,11 +29,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const adminMenu = [
     {
       icon: <FaUsers />,
-      label: "Dashboard",
-      route: "/",
-    },
-    {
-      icon: <FaUsers />,
       label: "Users",
       route: "#",
       children: [
@@ -92,11 +87,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   ];
 
   const userMenu = [
-    {
-      icon: <FaUsers />,
-      label: "Dashboard",
-      route: "/",
-    },
     {
       icon: <FaBookOpen />,
       label: "My Bookings",
