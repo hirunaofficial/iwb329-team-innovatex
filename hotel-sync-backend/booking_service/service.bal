@@ -35,23 +35,79 @@ service /bookings on new http:Listener(9093) {
         self.db = check new (host, user, password, database, port);
     }
 
-    // Add a new booking
-    resource function post addBooking(@http:Payload AddBookingRequest booking, http:Request req) returns http:Created|http:NoContent|http:Unauthorized|error {
+// Add a new booking
+resource function post addBooking(@http:Payload AddBookingRequest booking, http:Request req) returns http:Created|http:Response|http:Unauthorized|error {
+    if !self.validateJWT(req) {
+        return http:UNAUTHORIZED;
+    }
+
+    // Check for overlapping bookings
+    if self.hasOverlappingBookings(booking.room_id, booking.check_in_date, booking.check_out_date) {
+        http:Response response = new;
+        response.statusCode = 204;
+        response.setPayload("Overlapping booking found. Please select different dates.");
+        return response;
+    }
+
+    sql:ParameterizedQuery query = `INSERT INTO bookings (user_id, room_category, room_id, check_in_date, check_out_date, total_price, status, created_at)
+                                    VALUES (${booking.user_id}, ${booking.room_category}, ${booking.room_id}, ${booking.check_in_date}, ${booking.check_out_date}, 
+                                            ${booking.total_price}, ${booking.status}, NOW())`;
+    sql:ExecutionResult result = check self.db->execute(query);
+
+    int? count = result.affectedRowCount;
+    if count is int && count > 0 {
+        return http:CREATED;
+    } else {
+        http:Response response = new;
+        response.statusCode = 204;
+        response.setPayload("Failed to create booking.");
+        return response;
+    }
+}
+
+
+    // Check for overlapping bookings
+    function hasOverlappingBookings(string roomId, string checkInDate, string checkOutDate) returns boolean {
+        sql:ParameterizedQuery query = `SELECT COUNT(*) AS booking_count FROM bookings
+                                        WHERE room_id = ${roomId}
+                                        AND ((check_in_date <= ${checkOutDate} AND check_out_date >= ${checkInDate}))`;
+
+        stream<record {| int booking_count; |}, sql:Error?> bookingStream = self.db->query(query);
+        int bookingCount = 0;
+        error? e = bookingStream.forEach(function(record {| int booking_count; |} bookingRecord) {
+            bookingCount = bookingRecord.booking_count;
+        });
+
+        // Handle potential errors when closing the stream
+        var closeResult = bookingStream.close();
+        if (closeResult is error) {
+            return false;
+        }
+
+        return bookingCount > 0;
+    }
+
+
+    // Fetch bookings within a date range for a specific room
+    resource function post getBookingsByDateRange(@http:Payload BookingDateRangeRequest dateRangeRequest, http:Request req) returns BookingWithId[]|http:Unauthorized|error {
         if !self.validateJWT(req) {
             return http:UNAUTHORIZED;
         }
 
-        sql:ParameterizedQuery query = `INSERT INTO bookings (guest, room_category, room_id, check_in_date, check_out_date, total_price, status, created_at)
-                                        VALUES (${booking.guest}, ${booking.room_category}, ${booking.room_id}, ${booking.check_in_date}, ${booking.check_out_date}, 
-                                                ${booking.total_price}, ${booking.status}, NOW())`;
-        sql:ExecutionResult result = check self.db->execute(query);
+        sql:ParameterizedQuery query = `SELECT id, user_id, room_category, room_id, check_in_date, check_out_date, total_price, status 
+                                        FROM bookings 
+                                        WHERE room_id = ${dateRangeRequest.room_id} 
+                                        AND ((check_in_date <= ${dateRangeRequest.check_out_date} AND check_out_date >= ${dateRangeRequest.check_in_date}))`;
+        
+        stream<BookingWithId, sql:Error?> bookingStream = self.db->query(query);
+        BookingWithId[] bookings = [];
 
-        int? count = result.affectedRowCount;
-        if count is int && count > 0 {
-            return http:CREATED;
-        } else {
-            return http:NO_CONTENT;
-        }
+        error? e = bookingStream.forEach(function(BookingWithId bookingRecord) {
+            bookings.push(bookingRecord);
+        });
+
+        check bookingStream.close();
+        return bookings;
     }
 
     // Fetch total bookings count per day
@@ -83,7 +139,7 @@ service /bookings on new http:Listener(9093) {
             return http:UNAUTHORIZED;
         }
 
-        sql:ParameterizedQuery query = `SELECT id, guest, room_category, room_id, check_in_date, check_out_date, total_price, status 
+        sql:ParameterizedQuery query = `SELECT id, user_id, room_category, room_id, check_in_date, check_out_date, total_price, status 
                                         FROM bookings 
                                         WHERE check_in_date = ${dateRequest.date}`;
         stream<BookingWithId, sql:Error?> bookingStream = self.db->query(query);
@@ -95,48 +151,6 @@ service /bookings on new http:Listener(9093) {
 
         check bookingStream.close();
         return bookings;
-    }
-
-    // Update booking information (Requires booking ID)
-    resource function put updateBooking(int id, @http:Payload BookingUpdateRequest booking, http:Request req) returns http:Ok|http:NoContent|http:Unauthorized|error {
-        if !self.validateJWT(req) {
-            return http:UNAUTHORIZED;
-        }
-
-        sql:ParameterizedQuery query = `UPDATE bookings 
-                                        SET guest = ${booking.guest}, 
-                                            room_category = ${booking.room_category}, 
-                                            room_id = ${booking.room_id}, 
-                                            check_in_date = ${booking.check_in_date}, 
-                                            check_out_date = ${booking.check_out_date}, 
-                                            total_price = ${booking.total_price}, 
-                                            status = ${booking.status}
-                                        WHERE id = ${id}`;
-        sql:ExecutionResult result = check self.db->execute(query);
-
-        int? count = result.affectedRowCount;
-        if count is int && count > 0 {
-            return http:OK;
-        } else {
-            return http:NO_CONTENT;
-        }
-    }
-
-    // Delete a booking by ID (ID required)
-    resource function delete deleteBooking(int id, http:Request req) returns http:Ok|http:NoContent|http:Unauthorized|error {
-        if !self.validateJWT(req) {
-            return http:UNAUTHORIZED;
-        }
-
-        sql:ParameterizedQuery query = `DELETE FROM bookings WHERE id = ${id}`;
-        sql:ExecutionResult result = check self.db->execute(query);
-
-        int? count = result.affectedRowCount;
-        if count is int && count > 0 {
-            return http:OK;
-        } else {
-            return http:NO_CONTENT;
-        }
     }
 
     // JWT validation function
@@ -162,3 +176,14 @@ service /bookings on new http:Listener(9093) {
         return false;
     }
 }
+
+// Record type for adding a booking (No ID needed)
+type AddBookingRequest record {| 
+    int user_id;
+    string room_category;
+    string room_id;
+    string check_in_date;
+    string check_out_date;
+    decimal total_price;
+    string status;
+|};
