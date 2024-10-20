@@ -153,6 +153,94 @@ resource function post addBooking(@http:Payload AddBookingRequest booking, http:
         return bookings;
     }
 
+    // Update booking information (Requires booking ID)
+    resource function put updateBooking(int id, @http:Payload BookingUpdateRequest booking, http:Request req) returns http:Ok|http:NoContent|http:Unauthorized|error {
+        if !self.validateJWT(req) {
+            return http:UNAUTHORIZED;
+        }
+
+        sql:ParameterizedQuery query = `UPDATE bookings 
+                                        SET user_id = ${booking.user_id}, 
+                                            room_category = ${booking.room_category}, 
+                                            room_id = ${booking.room_id}, 
+                                            check_in_date = ${booking.check_in_date}, 
+                                            check_out_date = ${booking.check_out_date}, 
+                                            total_price = ${booking.total_price}, 
+                                            status = ${booking.status}
+                                        WHERE id = ${id}`;
+        sql:ExecutionResult result = check self.db->execute(query);
+
+        int? count = result.affectedRowCount;
+        if count is int && count > 0 {
+            return http:OK;
+        } else {
+            return http:NO_CONTENT;
+        }
+    }
+
+    // Delete a booking by ID (ID required)
+    resource function delete deleteBooking(int id, http:Request req) returns http:Ok|http:NoContent|http:Unauthorized|error {
+        if !self.validateJWT(req) {
+            return http:UNAUTHORIZED;
+        }
+
+        sql:ParameterizedQuery query = `DELETE FROM bookings WHERE id = ${id}`;
+        sql:ExecutionResult result = check self.db->execute(query);
+
+        int? count = result.affectedRowCount;
+        if count is int && count > 0 {
+            return http:OK;
+        } else {
+            return http:NO_CONTENT;
+        }
+    }
+
+    // Fetch bookings for a user using email (New Type)
+    resource function post getMyBookings(@http:Payload EmailRequest emailRequest, http:Request req) returns BookingWithId[]|http:Unauthorized|error {
+        if !self.validateJWT(req) {
+            return http:UNAUTHORIZED;
+        }
+
+        // Get the user ID using the provided email
+        int? userId = self.getUserIdByEmail(emailRequest.email);
+        if userId is () {
+            return error("No user found for the provided email.");
+        }
+
+        // Fetch bookings using the user ID
+        sql:ParameterizedQuery query = `SELECT id, user_id, room_category, room_id, check_in_date, check_out_date, total_price, status 
+                                        FROM bookings 
+                                        WHERE user_id = ${userId}`;
+        
+        stream<BookingWithId, sql:Error?> bookingStream = self.db->query(query);
+        BookingWithId[] myBookings = [];
+
+        error? e = bookingStream.forEach(function(BookingWithId bookingRecord) {
+            myBookings.push(bookingRecord);
+        });
+
+        check bookingStream.close();
+        return myBookings;
+    }
+
+    // Helper function to get user ID by email
+    function getUserIdByEmail(string email) returns int? {
+        sql:ParameterizedQuery query = `SELECT id FROM users WHERE email = ${email}`;
+        stream<record {| int id; |}, sql:Error?> userStream = self.db->query(query);
+        int? userId = ();
+
+        error? e = userStream.forEach(function(record {| int id; |} userRecord) {
+            userId = userRecord.id;
+        });
+
+        var closeResult = userStream.close();
+        if (closeResult is error) {
+            return ();
+        }
+
+        return userId;
+    }
+
     // JWT validation function
     function validateJWT(http:Request req) returns boolean {
         var authHeaderResult = req.getHeader("Authorization");
@@ -176,14 +264,3 @@ resource function post addBooking(@http:Payload AddBookingRequest booking, http:
         return false;
     }
 }
-
-// Record type for adding a booking (No ID needed)
-type AddBookingRequest record {| 
-    int user_id;
-    string room_category;
-    string room_id;
-    string check_in_date;
-    string check_out_date;
-    decimal total_price;
-    string status;
-|};
