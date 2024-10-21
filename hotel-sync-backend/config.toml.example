@@ -1,0 +1,11 @@
+# Configurations for database connection
+host = "localhost"
+port = 3306
+user = "your_username"
+password = "your_password"
+database = "your_database_name"
+
+# Configurable values for JWT
+issuer = "your_issuer"
+audience = "your_audience"
+secretKey = "your_secret_key"

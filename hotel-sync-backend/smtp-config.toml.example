@@ -1,0 +1,5 @@
+# SMTP Configuration
+smtpHost = "smtp.domain.com"
+smtpUser = "your_smtp_user"
+smtpPassword = "your_smtp_password"
+smtpPort = 465

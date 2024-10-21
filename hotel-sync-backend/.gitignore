@@ -12,3 +12,5 @@ Config.toml
 
 # .ENV
 .env
+config.toml
+smtp-config.toml
