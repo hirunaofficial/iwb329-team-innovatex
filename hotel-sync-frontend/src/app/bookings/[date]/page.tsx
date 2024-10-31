@@ -221,12 +221,13 @@ const BookingsForDate: React.FC = () => {
     const emailBody = EmailTemplate({
       children: `
         <p>Dear <strong>${user.name}</strong>,</p>
-        <p>Your booking details have been successfully updated:</p>
+        <p>Your booking details have been successfully updated. Please find the updated booking information below:</p>
         <p><strong>Room:</strong> ${booking.room_category}, Room ID: ${booking.room_id}</p>
         <p><strong>Check-in Date:</strong> ${booking.check_in_date}</p>
         <p><strong>Check-out Date:</strong> ${booking.check_out_date}</p>
         <p><strong>Total Price:</strong> ${booking.total_price}</p>
         <p><strong>Status:</strong> ${booking.status}</p>
+        <p>Thank you for choosing us. We look forward to hosting you. If you have any further questions or requests, please feel free to reach out.</p>
       `,
     });
 
