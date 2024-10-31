@@ -28,7 +28,7 @@ const AddBookingForm = () => {
     check_in_date: '',
     check_out_date: '',
     total_price: 0,
-    user_id: 0, // Ensure user_id is an integer
+    user_id: 0,
   });
 
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
@@ -40,7 +40,7 @@ const AddBookingForm = () => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === "user_id" ? parseInt(value) : value, // Ensure user_id is an integer
+      [name]: name === "user_id" ? parseInt(value) : value,
     });
 
     if (name === 'check_in_date' || name === 'check_out_date') {
@@ -48,7 +48,6 @@ const AddBookingForm = () => {
     }
   };
 
-  // Fetch available rooms
   const fetchRooms = async () => {
     const token = getToken();
     if (!token) {
@@ -76,7 +75,6 @@ const AddBookingForm = () => {
     }
   };
 
-  // Fetch users
   const fetchUsers = async () => {
     const token = getToken();
     if (!token) {
@@ -109,7 +107,6 @@ const AddBookingForm = () => {
     fetchUsers();
   }, []);
 
-  // Effect to update available rooms based on the selected category
   useEffect(() => {
     if (formData.room_category) {
       const filteredRooms = allRooms.filter(
@@ -121,7 +118,6 @@ const AddBookingForm = () => {
     }
   }, [formData.room_category, allRooms]);
 
-  // Automatically update the total price based on the room rate and date difference
   const updateTotalPrice = (newDateValue: string, fieldName: string) => {
     const checkInDate = fieldName === 'check_in_date' ? new Date(newDateValue) : new Date(formData.check_in_date);
     const checkOutDate = fieldName === 'check_out_date' ? new Date(newDateValue) : new Date(formData.check_out_date);
@@ -142,7 +138,6 @@ const AddBookingForm = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Check for overlapping bookings
     const isOverlapping = await checkForOverlappingBookings();
     if (isOverlapping) {
       setAlert({ type: 'danger', message: "Selected room is already booked for the given dates." });
@@ -164,7 +159,7 @@ const AddBookingForm = () => {
         },
         body: JSON.stringify({
           ...formData,
-          total_price: parseFloat(formData.total_price.toString()), // Convert to decimal
+          total_price: parseFloat(formData.total_price.toString()),
           status: 'approved',
         }),
       });
@@ -177,7 +172,7 @@ const AddBookingForm = () => {
           check_in_date: '',
           check_out_date: '',
           total_price: 0,
-          user_id: 0, // Reset as needed
+          user_id: 0,
         });
         await sendEmailToUser();
       } else {
@@ -189,23 +184,29 @@ const AddBookingForm = () => {
     }
   };
 
-  // Function to send email after booking
   const sendEmailToUser = async () => {
+    const selectedUser = users.find(user => user.id === formData.user_id);
+    if (!selectedUser) {
+      setAlert({ type: 'danger', message: "User not found for sending email." });
+      return;
+    }
+
     const emailBody = EmailTemplate({
       children: `
-        <p>Dear User,</p>
-        <p>Your booking has been confirmed. Here are the details:</p>
+        <p>Dear <strong>${selectedUser.name}</strong>,</p>
+        <p>Your booking has been confirmed at Hotel Sync. Here are your booking details:</p>
         <p><strong>Room Category:</strong> ${formData.room_category}</p>
-        <p><strong>Room ID:</strong> ${formData.room_id}</p>
+        <p><strong>Room Number:</strong> ${formData.room_id}</p>
         <p><strong>Check-In Date:</strong> ${formData.check_in_date}</p>
         <p><strong>Check-Out Date:</strong> ${formData.check_out_date}</p>
-        <p><strong>Total Price:</strong> ${formData.total_price}</p>
+        <p><strong>Total Price:</strong> ${formData.total_price} LKR</p>
+        <p>We look forward to your stay with us. Please let us know if you have any special requirements or questions.</p>
       `,
     });
 
     const emailData = {
-      to: 'user@example.com', // Replace with actual user email
-      subject: "Booking Confirmation",
+      to: selectedUser.email,
+      subject: "Hotel Sync Booking Confirmation",
       body: emailBody,
     };
 
@@ -220,13 +221,14 @@ const AddBookingForm = () => {
 
       if (!response.ok) {
         setAlert({ type: 'danger', message: "Failed to send booking confirmation email." });
+      } else {
+        setAlert({ type: 'success', message: "Booking confirmation email sent successfully!" });
       }
     } catch (error) {
       setAlert({ type: 'danger', message: "Error sending booking confirmation email." });
     }
   };
 
-  // Function to check for overlapping bookings
   const checkForOverlappingBookings = async () => {
     const token = getToken();
     if (!token) {
@@ -275,7 +277,6 @@ const AddBookingForm = () => {
 
             <form onSubmit={handleSubmit}>
               <div className="p-6.5">
-                {/* User Selection */}
                 <div className="mb-4.5">
                   <label className="mb-3 block text-sm font-medium text-black dark:text-white">
                     User
@@ -343,7 +344,7 @@ const AddBookingForm = () => {
                   <input
                     type="date"
                     name="check_in_date"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                     onChange={handleChange}
                     required
                     value={formData.check_in_date}
@@ -357,7 +358,7 @@ const AddBookingForm = () => {
                   <input
                     type="date"
                     name="check_out_date"
-                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-strokedark dark:bg-form-input dark:focus:border-primary"
                     onChange={handleChange}
                     required
                     value={formData.check_out_date}
@@ -369,16 +370,15 @@ const AddBookingForm = () => {
                     Total Price
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="total_price"
-                    step="0.01"
                     className="w-full rounded border-[1.5px] border-stroke bg-transparent px-5 py-3 text-black outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    value={formData.total_price}
+                    value={`${formData.total_price} LKR`}
                     readOnly
                   />
                 </div>
 
-                <button className="flex w-full justify-center rounded bg-primary p-3 font-medium text-gray hover:bg-opacity-90">
+                <button className="flex w-full justify-center rounded bg-primary p-3 font-medium text-white hover:bg-opacity-90">
                   Add Booking
                 </button>
               </div>
