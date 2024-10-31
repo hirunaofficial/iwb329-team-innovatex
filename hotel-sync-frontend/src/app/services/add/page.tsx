@@ -4,6 +4,7 @@ import DefaultLayout from "@/components/Layouts/DefaultLayout";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { getToken } from '@/lib/tokenManager';
 import Alert from "@/components/Alert";
+import EmailTemplate from "@/components/EmailTemplate";
 
 type AlertType = {
   type: 'success' | 'danger' | 'warning';
@@ -13,6 +14,7 @@ type AlertType = {
 type StaffMember = {
   id: number;
   name: string;
+  email: string;
 };
 
 const AddServiceRequestForm = () => {
@@ -92,13 +94,18 @@ const AddServiceRequestForm = () => {
       }
 
       setAlert({ type: "success", message: "Service request created successfully!" });
-      // Reset form data
       setFormData({ description: "", status: "Pending", assigned_to_staff: "" });
 
       // Automatically hide the alert after 3 seconds
       setTimeout(() => {
         setAlert(null);
       }, 3000);
+
+      // Send email to the assigned staff member
+      const assignedStaff = staffList.find(staff => staff.id === finalData.assigned_to_staff);
+      if (assignedStaff) {
+        await sendEmailNotification(assignedStaff, finalData.description);
+      }
     } catch (err) {
       setAlert({ type: "danger", message: err instanceof Error ? err.message : "An error occurred while creating the service request." });
 
@@ -106,6 +113,44 @@ const AddServiceRequestForm = () => {
       setTimeout(() => {
         setAlert(null);
       }, 3000);
+    }
+  };
+
+  // Function to send email notification to the assigned staff member
+  const sendEmailNotification = async (staff: StaffMember, description: string) => {
+    const emailBody = EmailTemplate({
+      children: `
+        <p>Dear <strong>${staff.name}</strong>,</p>
+        <p>You have been assigned a new service request. Please find the details below:</p>
+        <p><strong>Service Request Description:</strong> ${description}</p>
+        <p><strong>Status:</strong> Pending</p>
+        <p>Please check the system for further details and take the necessary action.</p>
+        <p>Thank you,<br />Service Management Team</p>
+      `,
+    });
+
+    const emailData = {
+      to: staff.email,
+      subject: "New Service Request Assigned",
+      body: emailBody,
+    };
+
+    try {
+      const emailResponse = await fetch("http://localhost:9099/email/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(emailData),
+      });
+
+      if (!emailResponse.ok) {
+        console.log("Failed to send email notification.");
+      } else {
+        console.log("Email notification sent successfully!");
+      }
+    } catch (error) {
+      console.log("Error sending email notification:", error);
     }
   };
 
