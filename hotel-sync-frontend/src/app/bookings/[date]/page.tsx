@@ -422,10 +422,23 @@ const BookingsForDate: React.FC = () => {
                             {booking.check_out_date}
                           </td>
                           <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                            {booking.total_price}
+                            {booking.total_price.toLocaleString("en-LK", {
+                              style: "currency",
+                              currency: "LKR",
+                            })}
                           </td>
                           <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                            {booking.status}
+                            <p
+                              className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium bg-opacity-10 ${
+                                booking.status === "available"
+                                  ? "bg-success text-success"
+                                  : booking.status === "booked"
+                                  ? "bg-warning text-warning"
+                                  : "bg-danger text-danger"
+                              }`}
+                            >
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </p>
                           </td>
                           <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                             <div className="flex items-center space-x-3.5">

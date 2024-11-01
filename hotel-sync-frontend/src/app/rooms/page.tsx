@@ -176,7 +176,7 @@ const RoomList = () => {
                     Status
                   </th>
                   <th className="min-w-[150px] px-4 py-4 font-medium text-black dark:text-white">
-                    Price
+                    Price per Night
                   </th>
                   <th className="min-w-[200px] px-4 py-4 font-medium text-black dark:text-white">
                     Description
@@ -280,7 +280,12 @@ const RoomList = () => {
                           </p>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
-                          <p className="text-black dark:text-white">${room.price}</p>
+                          <p className="text-black dark:text-white">
+                            {room.price.toLocaleString("en-LK", {
+                              style: "currency",
+                              currency: "LKR",
+                            })}
+                          </p>
                         </td>
                         <td className="border-b border-[#eee] px-4 py-5 dark:border-strokedark">
                           <p className="text-black dark:text-white">
