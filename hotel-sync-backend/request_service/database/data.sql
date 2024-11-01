@@ -1,6 +1,21 @@
-INSERT INTO service_requests (description, assigned_to_staff, status) VALUES
-('Fix broken light in Room 101', 2, 'Pending'),
-('Clean up Suite 203 before new guest arrival', 3, 'In Progress'),
-('Replace mini fridge in Double Room 105', 5, 'Completed'),
-('Inspect plumbing issue in Room 104', 4, 'Pending'),
-('Repaint Single Room 104 after maintenance', 2, 'In Progress');
+INSERT INTO service_requests (description, assigned_to_staff, status, created_at, updated_at) VALUES
+('Network setup in office', 6, 'Completed', '2023-04-01', '2023-04-10'),
+('Computer maintenance', 7, 'Pending', '2023-04-02', '2023-04-02'),
+('Projector installation', 8, 'In Progress', '2023-04-05', '2023-04-06'),
+('Wi-Fi troubleshooting', 9, 'Completed', '2023-04-07', '2023-04-08'),
+('Printer setup', 10, 'Pending', '2023-04-08', '2023-04-08'),
+('Network security audit', 6, 'In Progress', '2023-04-10', '2023-04-12'),
+('Office phone setup', 7, 'Completed', '2023-04-15', '2023-04-18'),
+('Software installation', 8, 'Pending', '2023-04-18', '2023-04-18'),
+('Hardware upgrade', 9, 'In Progress', '2023-04-20', '2023-04-22'),
+('New employee onboarding setup', 10, 'Completed', '2023-04-25', '2023-04-27'),
+('Internet issues', 6, 'Pending', '2023-04-26', '2023-04-26'),
+('Email configuration', 7, 'Completed', '2023-04-28', '2023-05-01'),
+('Data backup', 8, 'In Progress', '2023-05-02', '2023-05-03'),
+('Virus removal', 9, 'Completed', '2023-05-05', '2023-05-07'),
+('Conference room setup', 10, 'Pending', '2023-05-06', '2023-05-06'),
+('Office computer upgrade', 6, 'In Progress', '2023-05-08', '2023-05-10'),
+('Network expansion', 7, 'Completed', '2023-05-12', '2023-05-15'),
+('VPN configuration', 8, 'Pending', '2023-05-16', '2023-05-16'),
+('Remote desktop setup', 9, 'In Progress', '2023-05-17', '2023-05-18'),
+('User account creation', 10, 'Completed', '2023-05-19', '2023-05-20');
